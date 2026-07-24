@@ -665,7 +665,7 @@
 
         <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
           <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-emerald-glow"></i> Ownership</h2>
-          <p class="text-xs text-slate-400 mb-5">Applies to whichever contract you select — ownership can be transferred independently per contract.</p>
+          <p class="text-xs text-slate-400 mb-5">Applies to whichever contract you select. Transfers are now <strong class="text-slate-300">two-step</strong>: proposing a new owner does not change anything by itself — the new address must connect and click "Accept" itself. A typo'd address can never accidentally brick the contract.</p>
 
           <div class="space-y-4">
             <div>
@@ -680,16 +680,35 @@
               </select>
               <p class="text-[11px] text-slate-500 mt-1.5">Tip: transferring ownership to your deployed <span class="mono">PowerComputeTimelock</span> address (Timelock tab) is the recommended production setup — see the note there.</p>
             </div>
+
+            <div class="glass rounded-xl p-4">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-slate-400">Current owner</span>
+                <span class="mono text-xs font-semibold" id="settings-current-owner">--</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-400">Pending owner (awaiting acceptance)</span>
+                <span class="mono text-xs font-semibold text-cyan-glow" id="settings-pending-owner">None</span>
+              </div>
+              <button id="btn-refresh-ownership-info" class="mt-2 text-[11px] text-slate-500 hover:text-emerald-glow underline">Refresh</button>
+            </div>
+
             <div>
-              <label class="text-xs text-slate-400 block mb-1.5">Transfer ownership to</label>
+              <label class="text-xs text-slate-400 block mb-1.5">Step 1 — Propose new owner</label>
               <div class="flex gap-2">
                 <input id="settings-new-owner" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
-                <button id="btn-transfer-ownership" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Transfer</button>
+                <button id="btn-transfer-ownership" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Propose</button>
               </div>
             </div>
+
+            <div class="flex gap-2">
+              <button id="btn-accept-ownership" class="flex-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Step 2 — Accept Ownership (connect as pending owner)</button>
+              <button id="btn-cancel-ownership-transfer" class="rounded-lg bg-slate-500/15 border border-slate-500/30 text-slate-300 text-xs font-semibold px-3 whitespace-nowrap">Cancel Proposal</button>
+            </div>
+
             <div class="glass rounded-xl p-4 border border-red-500/20">
               <p class="text-xs text-red-400 font-semibold mb-2 flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Danger Zone</p>
-              <p class="text-[11px] text-slate-400 mb-3">Renouncing ownership is permanent and irreversible. No one — including you — will be able to call owner-only functions on this contract ever again.</p>
+              <p class="text-[11px] text-slate-400 mb-3">Renouncing ownership is permanent, immediate (single-step, unlike transfer), and irreversible. No one — including you — will be able to call owner-only functions on this contract ever again.</p>
               <button id="btn-renounce-ownership" class="w-full rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold py-2">Renounce Ownership</button>
             </div>
             <p id="settings-ownership-status" class="text-xs mono text-slate-500 break-all"></p>
@@ -721,11 +740,33 @@
 
             <div class="pt-4 border-t border-white/5">
               <label class="text-xs text-slate-400 block mb-1.5">Recover unclaimed $PWR from Presale (after finalize)</label>
+              <p class="text-[11px] text-slate-500 mb-2">Strictly capped to <span class="mono">tokensDepositedForClaims - totalTokensSold</span> — surplus/dust only. Cannot touch anything still owed to a contributor.</p>
+              <div id="recover-presale-available" class="text-[11px] text-emerald-glow mono mb-2">Available to recover: --</div>
               <div class="flex gap-2">
                 <input id="recover-presale-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
                 <input id="recover-presale-to" type="text" placeholder="Send to 0x... (defaults to you)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
               </div>
-              <button id="btn-recover-presale" class="mt-2 w-full rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Recover from Presale</button>
+              <button id="btn-recover-presale" class="mt-2 w-full rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Recover Surplus from Presale</button>
+            </div>
+
+            <div class="pt-4 border-t border-white/5">
+              <label class="text-xs text-slate-400 block mb-1.5">Recover deposited $PWR after presale cancellation</label>
+              <p class="text-[11px] text-slate-500 mb-2">Only usable once the presale is in the <span class="mono">Cancelled</span> state — contributors get ETH refunds, not tokens, in that path, so all deposited $PWR is recoverable.</p>
+              <div class="flex gap-2">
+                <input id="recover-cancelled-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <input id="recover-cancelled-to" type="text" placeholder="Send to 0x... (defaults to you)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+              </div>
+              <button id="btn-recover-cancelled" class="mt-2 w-full rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold py-2">Recover After Cancel</button>
+            </div>
+
+            <div class="pt-4 border-t border-white/5">
+              <label class="text-xs text-slate-400 block mb-1.5">Block a referrer from earning further bonuses</label>
+              <p class="text-[11px] text-slate-500 mb-2">Referral programs can't fully prevent Sybil abuse (one person controlling both wallets) — use this if you detect farming. Does not claw back bonuses already paid.</p>
+              <div class="flex gap-2">
+                <input id="block-referrer-addr" type="text" placeholder="Referrer 0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-red-400" />
+                <button id="btn-block-referrer" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold px-3 whitespace-nowrap">Block</button>
+                <button id="btn-unblock-referrer" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Unblock</button>
+              </div>
             </div>
 
             <p id="settings-params-status" class="text-xs mono text-slate-500 break-all"></p>
@@ -861,6 +902,8 @@ async function verifyAccess() {
     loadGovProposals();
     loadVestingSchedules();
     loadTimelockInfo();
+    loadOwnershipInfo();
+    loadPresaleRecoverableAmount();
   } catch (err) {
     console.error("Access verification failed:", err);
     accessGranted = false;
@@ -1976,25 +2019,100 @@ function getSettingsTargetContract() {
 function settingsOwnershipStatus(msg) { document.getElementById('settings-ownership-status').textContent = msg; }
 function settingsParamsStatus(msg) { document.getElementById('settings-params-status').textContent = msg; }
 
+async function loadOwnershipInfo() {
+  const { contract } = getSettingsTargetContract();
+  if (!contract) {
+    document.getElementById('settings-current-owner').textContent = "--";
+    document.getElementById('settings-pending-owner').textContent = "None";
+    return;
+  }
+  try {
+    const [currentOwner, pending] = await Promise.all([contract.owner(), contract.pendingOwner()]);
+    document.getElementById('settings-current-owner').textContent = pcShorten(currentOwner);
+    document.getElementById('settings-pending-owner').textContent =
+      pending === ethers.constants.AddressZero ? "None" : pcShorten(pending);
+  } catch (err) {
+    console.error("Failed to load ownership info:", err);
+  }
+}
+
+async function loadPresaleRecoverableAmount() {
+  const el = document.getElementById('recover-presale-available');
+  if (!PC.presaleContract) { el.textContent = "Available to recover: --"; return; }
+  try {
+    const [deposited, sold] = await Promise.all([
+      PC.presaleContract.tokensDepositedForClaims(),
+      PC.presaleContract.totalTokensSold()
+    ]);
+    const recoverable = deposited.gt(sold) ? deposited.sub(sold) : ethers.BigNumber.from(0);
+    el.textContent = `Available to recover: ${pcFmtToken(recoverable, 18)} PWR`;
+  } catch (err) {
+    el.textContent = "Available to recover: read error";
+  }
+}
+
 function wireSettingsControls() {
+  document.getElementById('settings-target-contract').addEventListener('change', loadOwnershipInfo);
+  document.getElementById('btn-refresh-ownership-info').addEventListener('click', loadOwnershipInfo);
+
   document.getElementById('btn-transfer-ownership').addEventListener('click', async () => {
     const { contract, label } = getSettingsTargetContract();
     if (!pcRequire(contract, label)) return;
     const newOwner = document.getElementById('settings-new-owner').value.trim();
     if (!ethers.utils.isAddress(newOwner)) { pcToast("Enter a valid new owner address.", "error"); return; }
-    if (!confirm(`Transfer ownership of ${label} to ${newOwner}? You will immediately lose all owner-only access to this contract.`)) return;
+    if (!confirm(`Propose ${newOwner} as the new owner of ${label}? This does NOT transfer ownership yet — that address must connect and click "Accept Ownership" itself to complete the handover. You keep full control until they do.`)) return;
 
     try {
-      settingsOwnershipStatus(`Transferring ownership of ${label}...`);
+      settingsOwnershipStatus(`Proposing new owner for ${label}...`);
       const tx = await contract.transferOwnership(newOwner);
       settingsOwnershipStatus(`Tx submitted: ${tx.hash}`);
       await tx.wait();
-      settingsOwnershipStatus(`Ownership transferred: ${tx.hash}`);
-      pcToast(`${label} ownership transferred. Reconnect with the new owner wallet to continue managing it.`, "success");
+      settingsOwnershipStatus(`Ownership proposed: ${tx.hash}`);
+      pcToast(`${label}: ${pcShorten(newOwner)} can now connect and accept ownership. You are still the owner until they do.`, "success");
+      loadOwnershipInfo();
     } catch (err) {
       console.error(err);
-      settingsOwnershipStatus(err.reason || err.message || "Transfer failed.");
-      pcToast("Ownership transfer failed.", "error");
+      settingsOwnershipStatus(err.reason || err.message || "Propose failed.");
+      pcToast("Failed to propose new owner.", "error");
+    }
+  });
+
+  document.getElementById('btn-accept-ownership').addEventListener('click', async () => {
+    const { contract, label } = getSettingsTargetContract();
+    if (!pcRequire(contract, label)) return;
+    if (!confirm(`Accept ownership of ${label} with the currently connected wallet? Only do this if this wallet was proposed as the pending owner.`)) return;
+
+    try {
+      settingsOwnershipStatus(`Accepting ownership of ${label}...`);
+      const tx = await contract.acceptOwnership();
+      settingsOwnershipStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      settingsOwnershipStatus(`Ownership accepted: ${tx.hash}`);
+      pcToast(`You are now the owner of ${label}.`, "success");
+      loadOwnershipInfo();
+    } catch (err) {
+      console.error(err);
+      settingsOwnershipStatus(err.reason || err.message || "Accept failed.");
+      pcToast("Failed to accept ownership — is this wallet the pending owner?", "error");
+    }
+  });
+
+  document.getElementById('btn-cancel-ownership-transfer').addEventListener('click', async () => {
+    const { contract, label } = getSettingsTargetContract();
+    if (!pcRequire(contract, label)) return;
+
+    try {
+      settingsOwnershipStatus(`Cancelling pending ownership proposal for ${label}...`);
+      const tx = await contract.cancelOwnershipTransfer();
+      settingsOwnershipStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      settingsOwnershipStatus(`Proposal cancelled: ${tx.hash}`);
+      pcToast(`Pending ownership proposal for ${label} cancelled.`, "success");
+      loadOwnershipInfo();
+    } catch (err) {
+      console.error(err);
+      settingsOwnershipStatus(err.reason || err.message || "Cancel failed.");
+      pcToast("Failed to cancel proposal.", "error");
     }
   });
 
@@ -2011,6 +2129,7 @@ function wireSettingsControls() {
       await tx.wait();
       settingsOwnershipStatus(`Ownership renounced: ${tx.hash}`);
       pcToast(`${label} ownership renounced permanently.`, "success");
+      loadOwnershipInfo();
     } catch (err) {
       console.error(err);
       settingsOwnershipStatus(err.reason || err.message || "Renounce failed.");
@@ -2074,12 +2193,57 @@ function wireSettingsControls() {
       await tx.wait();
       settingsParamsStatus(`Recovered: ${tx.hash}`);
       pcToast("Unclaimed $PWR recovered from presale.", "success");
+      loadPresaleRecoverableAmount();
     } catch (err) {
       console.error(err);
       settingsParamsStatus(err.reason || err.message || "Failed.");
-      pcToast("Recovery failed.", "error");
+      pcToast("Recovery failed — amount likely exceeds the recoverable surplus.", "error");
     }
   });
+
+  document.getElementById('btn-recover-cancelled').addEventListener('click', async () => {
+    if (!pcRequire(PC.presaleContract, "PowerComputePresale")) return;
+    const amount = document.getElementById('recover-cancelled-amount').value;
+    const to = document.getElementById('recover-cancelled-to').value.trim() || PC.address;
+    if (!amount || parseFloat(amount) <= 0 || !ethers.utils.isAddress(to)) {
+      pcToast("Enter a valid amount and recipient.", "error");
+      return;
+    }
+    try {
+      settingsParamsStatus("Recovering deposited $PWR after cancellation...");
+      const tx = await PC.presaleContract.recoverDepositedTokensAfterCancel(to, ethers.utils.parseUnits(amount, 18));
+      settingsParamsStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      settingsParamsStatus(`Recovered: ${tx.hash}`);
+      pcToast("Deposited $PWR recovered.", "success");
+    } catch (err) {
+      console.error(err);
+      settingsParamsStatus(err.reason || err.message || "Failed.");
+      pcToast("Recovery failed — the presale may not be in the Cancelled state.", "error");
+    }
+  });
+
+  document.getElementById('btn-block-referrer').addEventListener('click', () => setReferrerBlocked(true));
+  document.getElementById('btn-unblock-referrer').addEventListener('click', () => setReferrerBlocked(false));
+}
+
+async function setReferrerBlocked(blocked) {
+  if (!pcRequire(PC.presaleContract, "PowerComputePresale")) return;
+  const addr = document.getElementById('block-referrer-addr').value.trim();
+  if (!ethers.utils.isAddress(addr)) { pcToast("Enter a valid referrer address.", "error"); return; }
+
+  try {
+    settingsParamsStatus(`${blocked ? "Blocking" : "Unblocking"} referrer ${pcShorten(addr)}...`);
+    const tx = await PC.presaleContract.setReferralBlocked(addr, blocked);
+    settingsParamsStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    settingsParamsStatus(`Updated: ${tx.hash}`);
+    pcToast(`Referrer ${pcShorten(addr)} ${blocked ? "blocked" : "unblocked"}.`, "success");
+  } catch (err) {
+    console.error(err);
+    settingsParamsStatus(err.reason || err.message || "Failed.");
+    pcToast("Failed to update referrer block status.", "error");
+  }
 }
 
 /* -------------------------------------------------------------------------

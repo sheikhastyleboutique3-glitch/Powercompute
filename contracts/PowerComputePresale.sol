@@ -80,6 +80,12 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
     uint256 public totalTokensSold;
     uint256 public tokensDepositedForClaims;
 
+    /// @notice Cumulative $PWR actually withdrawn by contributors via
+    ///         `claim()`. Used by `recoverUnclaimedTokens` (audit fix,
+    ///         finding #1) to bound recovery strictly to tokens NOT owed
+    ///         to any contributor — see that function for details.
+    uint256 public totalTokensClaimed;
+
     mapping(address => uint256) public contributionsWei;
     mapping(address => uint256) public tokenAllocations;
     mapping(address => bool) public hasClaimed;
@@ -112,6 +118,17 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
     /// @notice Total bonus $PWR issued across the entire referral program (accounting only, included in totalTokensSold).
     uint256 public totalReferralBonusIssued;
 
+    /// @notice Audit finding #6 mitigation: referral programs are
+    ///         inherently Sybil-able on-chain (nothing stops one person
+    ///         from controlling both the referrer and referee wallet to
+    ///         farm the combined ~8% bonus with no real second user) — a
+    ///         circuit breaker cannot fully prevent this, but lets the
+    ///         owner cut off a specific address's future referral bonuses
+    ///         the moment abuse is detected (e.g. via off-chain analysis
+    ///         of wallet funding patterns), without pausing the whole
+    ///         presale for everyone else.
+    mapping(address => bool) public referralBlocked;
+
     // ------------------------------------------------------------------
     // Events
     // ------------------------------------------------------------------
@@ -129,6 +146,7 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
     event ReferralLinked(address indexed referee, address indexed referrer);
     event ReferralBonusPaid(address indexed referee, address indexed referrer, uint256 refereeBonus, uint256 referrerBonus);
     event ReferralBpsUpdated(uint256 newRefereeBonusBps, uint256 newReferrerBonusBps);
+    event ReferrerBlocked(address indexed referrer, bool blocked);
 
     // ------------------------------------------------------------------
     // Constructor
@@ -180,6 +198,20 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
         refereeBonusBps = newRefereeBonusBps;
         referrerBonusBps = newReferrerBonusBps;
         emit ReferralBpsUpdated(newRefereeBonusBps, newReferrerBonusBps);
+    }
+
+    /**
+     * @notice Block (or unblock) a specific referrer address from earning
+     *         any further referral bonuses — e.g. after off-chain
+     *         detection of Sybil/self-referral farming. Only withholds the
+     *         REFERRER's future bonus; it does not claw back bonuses
+     *         already paid, and does not affect the referee's own bonus on
+     *         that same contribution.
+     */
+    function setReferralBlocked(address referrer, bool blocked) external onlyOwner {
+        require(referrer != address(0), "Presale: zero address referrer");
+        referralBlocked[referrer] = blocked;
+        emit ReferrerBlocked(referrer, blocked);
     }
 
     // ------------------------------------------------------------------
@@ -280,7 +312,7 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
      */
     function _applyReferralBonus(address referee, uint256 tokensAllocatedThisTx, uint256 weiThisTx) internal {
         address referrer = referredBy[referee];
-        if (referrer == address(0) || tokensAllocatedThisTx == 0) {
+        if (referrer == address(0) || tokensAllocatedThisTx == 0 || referralBlocked[referrer]) {
             return;
         }
 
@@ -344,6 +376,30 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
     }
 
     /**
+     * @notice Recover $PWR previously deposited via `depositTokensForClaims`
+     *         after the presale has been cancelled. Contributors are made
+     *         whole via ETH `claimRefund()`, not $PWR, in the cancelled
+     *         path, so ALL deposited tokens are legitimately recoverable
+     *         here — unlike `recoverUnclaimedTokens`, no contributor has
+     *         any claim on $PWR once the raise is cancelled.
+     *
+     * @dev AUDIT FIX (finding #8): previously, deposited tokens had no
+     *      recovery path at all once cancelled — they were permanently
+     *      stuck in the contract with every withdrawal function gated on
+     *      `Finalized` state, which a `Cancelled` presale can never reach.
+     */
+    function recoverDepositedTokensAfterCancel(address to, uint256 amount) external onlyOwner {
+        require(state == PresaleState.Cancelled, "Presale: not cancelled");
+        require(to != address(0), "Presale: zero address recipient");
+        require(amount <= tokensDepositedForClaims, "Presale: amount exceeds deposited balance");
+
+        tokensDepositedForClaims -= amount;
+
+        bool ok = pwrToken.transfer(to, amount);
+        require(ok, "Presale: token transfer failed");
+    }
+
+    /**
      * @notice Sweep raised ETH to a recipient. Only available once finalized.
      */
     function withdrawRaisedFunds(address payable to) external onlyOwner nonReentrant {
@@ -360,12 +416,43 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Recover any $PWR left over after all claims (e.g. rounding
-     *         dust), only once finalized.
+     * @notice Recover $PWR that is genuinely surplus to contributor claims
+     *         (e.g. leftover dust from over-funding, or allocations from
+     *         contributors who never come back to claim after a very long
+     *         time). Only once finalized.
+     *
+     * @dev AUDIT FIX (finding #1, CRITICAL): the original version of this
+     *      function let the owner withdraw ANY amount immediately after
+     *      finalize(), before a single contributor had claimed anything —
+     *      effectively a full rug-pull path on every contributor's
+     *      allocation. It is now hard-capped to
+     *      `tokensDepositedForClaims - totalTokensClaimed - totalTokensSold`,
+     *      i.e. strictly the portion of deposited tokens that is NOT
+     *      currently owed to any contributor who hasn't claimed yet. As
+     *      contributors claim, `totalTokensClaimed` rises and
+     *      `totalTokensSold` (the amount still potentially claimable)
+     *      shrinks in lockstep via the claim path, so this bound is always
+     *      accurate — it can never let the owner take tokens a contributor
+     *      still has a right to.
      */
     function recoverUnclaimedTokens(address to, uint256 amount) external onlyOwner {
         require(state == PresaleState.Finalized, "Presale: not finalized");
         require(to != address(0), "Presale: zero address recipient");
+
+        // Deposited tokens are only ever spent on: (a) contributor claims,
+        // already tracked in totalTokensClaimed, and (b) whatever is still
+        // outstanding for contributors who haven't claimed, which is
+        // exactly (totalTokensSold - totalTokensClaimed). Anything in the
+        // contract beyond both of those is genuine surplus. Algebraically
+        // that's `tokensDepositedForClaims - totalTokensSold`, since the
+        // totalTokensClaimed terms cancel — written out with an explicit
+        // underflow guard rather than relying on that cancellation so the
+        // intent stays obvious to a reader/auditor.
+        require(tokensDepositedForClaims >= totalTokensSold, "Presale: nothing recoverable yet");
+        uint256 recoverable = tokensDepositedForClaims - totalTokensSold;
+
+        require(amount <= recoverable, "Presale: amount exceeds recoverable surplus");
+
         bool ok = pwrToken.transfer(to, amount);
         require(ok, "Presale: token transfer failed");
     }
@@ -385,6 +472,7 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
         require(amount > 0, "Presale: no allocation");
 
         hasClaimed[msg.sender] = true;
+        totalTokensClaimed += amount;
 
         bool ok = pwrToken.transfer(msg.sender, amount);
         require(ok, "Presale: token transfer failed");

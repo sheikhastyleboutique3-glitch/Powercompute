@@ -94,10 +94,21 @@ contract PowerComputeVesting is Ownable, ReentrancyGuard {
         require(durationSeconds > 0, "Vesting: duration must be > 0");
         require(cliffSeconds <= durationSeconds, "Vesting: cliff cannot exceed duration");
 
+        // Audit fix (finding #3): the old condition allowed a new schedule
+        // to overwrite an old one as long as it was EITHER fully released
+        // OR revoked — but a revoked schedule can still have vested-but-
+        // unreleased tokens sitting in it (revoke() only returns the
+        // UNVESTED remainder to the owner; the vested portion stays
+        // claimable by the beneficiary via release()). Overwriting that
+        // struct would silently orphan those already-vested tokens with
+        // no function left able to reference them. The fix requires
+        // `released >= totalAmount` unconditionally — i.e. the
+        // beneficiary must have actually withdrawn everything they were
+        // ever owed, revoked or not, before a new schedule can start.
         VestingSchedule storage existing = schedules[beneficiary];
         require(
-            existing.totalAmount == 0 || (existing.released >= existing.totalAmount) || existing.revoked,
-            "Vesting: beneficiary already has an active schedule"
+            existing.totalAmount == 0 || existing.released >= existing.totalAmount,
+            "Vesting: beneficiary has unreleased tokens on an existing schedule"
         );
 
         bool ok = pwrToken.transferFrom(msg.sender, address(this), totalAmount);

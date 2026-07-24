@@ -68,8 +68,12 @@ const PWR_TOKEN_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
   "function allowance(address owner, address spender) view returns (uint256)",
   "function owner() view returns (address)",
+  "function pendingOwner() view returns (address)",
   "function MAX_SUPPLY() view returns (uint256)",
+  "function MAX_UNSTAKE_COOLDOWN() view returns (uint256)",
   "function stakedBalanceOf(address user) view returns (uint256)",
+  "function getPastStakedBalance(address account, uint256 blockNumber) view returns (uint256)",
+  "function getPastTotalStaked(uint256 blockNumber) view returns (uint256)",
   "function pendingRewardsOf(address user) view returns (uint256)",
   "function totalStaked() view returns (uint256)",
   "function rewardRatePerSecond() view returns (uint256)",
@@ -86,17 +90,25 @@ const PWR_TOKEN_ABI = [
   "function fundRewardsPool(uint256 amount)",
   "function setRewardRatePerSecond(uint256 newRate)",
   "function setUnstakeCooldown(uint256 newCooldownSeconds)",
+  "function recoverForeignToken(address tokenAddress, uint256 amount, address to)",
+  "function transferOwnership(address newOwner)",
+  "function acceptOwnership()",
+  "function cancelOwnershipTransfer()",
+  "function renounceOwnership()",
   "function pause()",
   "function unpause()",
   "function paused() view returns (bool)",
   "event Staked(address indexed user, uint256 amount, uint256 newTotalStaked)",
   "event Unstaked(address indexed user, uint256 amount, uint256 newTotalStaked)",
   "event RewardsClaimed(address indexed user, uint256 amount)",
-  "event EmissionMinted(address indexed minter, address indexed to, uint256 amount)"
+  "event EmissionMinted(address indexed minter, address indexed to, uint256 amount)",
+  "event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)"
 ];
 
 const NODE_REGISTRY_ABI = [
   "function owner() view returns (address)",
+  "function pendingOwner() view returns (address)",
   "function pwrToken() view returns (address)",
   "function nextNodeId() view returns (uint256)",
   "function nextProofId() view returns (uint256)",
@@ -105,12 +117,13 @@ const NODE_REGISTRY_ABI = [
   "function totalRewardsMinted() view returns (uint256)",
   "function rewardPerKwh() view returns (uint256)",
   "function maxKwhPerProof() view returns (uint256)",
+  "function MAX_BATCH_SIZE() view returns (uint256)",
   "function oracles(address) view returns (bool)",
   "function nodes(uint256) view returns (address operator, string gpuModel, uint16 gpuCount, string energySiteId, string region, uint8 status, uint256 registeredAt, uint256 totalEnergyRoutedKwh, uint256 totalRewardsEarned, uint256 lastProofTimestamp)",
-  "function energyProofs(uint256) view returns (uint256 nodeId, address operator, uint256 kWhRouted, uint256 periodStart, uint256 periodEnd, bool approved, bool rejected, uint256 rewardMinted, uint256 submittedAt, uint256 resolvedAt)",
+  "function energyProofs(uint256) view returns (uint256 nodeId, address operator, uint256 kWhRouted, uint256 periodStart, uint256 periodEnd, bool approved, bool rejected, uint256 rewardMinted, uint256 submittedAt, uint256 resolvedAt, uint256 rewardPerKwhAtSubmission)",
   "function getNodesByOperator(address operatorAddr) view returns (uint256[])",
   "function getNode(uint256 nodeId) view returns (tuple(address operator, string gpuModel, uint16 gpuCount, string energySiteId, string region, uint8 status, uint256 registeredAt, uint256 totalEnergyRoutedKwh, uint256 totalRewardsEarned, uint256 lastProofTimestamp))",
-  "function getEnergyProof(uint256 proofId) view returns (tuple(uint256 nodeId, address operator, uint256 kWhRouted, uint256 periodStart, uint256 periodEnd, bool approved, bool rejected, uint256 rewardMinted, uint256 submittedAt, uint256 resolvedAt))",
+  "function getEnergyProof(uint256 proofId) view returns (tuple(uint256 nodeId, address operator, uint256 kWhRouted, uint256 periodStart, uint256 periodEnd, bool approved, bool rejected, uint256 rewardMinted, uint256 submittedAt, uint256 resolvedAt, uint256 rewardPerKwhAtSubmission))",
   "function registerNode(string gpuModel, uint16 gpuCount, string energySiteId, string region) returns (uint256)",
   "function verifyNode(uint256 nodeId)",
   "function suspendNode(uint256 nodeId)",
@@ -124,6 +137,10 @@ const NODE_REGISTRY_ABI = [
   "function setMaxKwhPerProof(uint256 newMax)",
   "function batchVerifyNodes(uint256[] nodeIds) returns (uint256)",
   "function batchApproveEnergyProofs(uint256[] proofIds) returns (uint256)",
+  "function transferOwnership(address newOwner)",
+  "function acceptOwnership()",
+  "function cancelOwnershipTransfer()",
+  "function renounceOwnership()",
   "function pause()",
   "function unpause()",
   "function paused() view returns (bool)",
@@ -132,17 +149,21 @@ const NODE_REGISTRY_ABI = [
   "event NodeStatusChanged(uint256 indexed nodeId, uint8 oldStatus, uint8 newStatus)",
   "event EnergyProofSubmitted(uint256 indexed proofId, uint256 indexed nodeId, address indexed operator, uint256 kWhRouted, uint256 periodStart, uint256 periodEnd)",
   "event EnergyProofApproved(uint256 indexed proofId, uint256 indexed nodeId, address indexed operator, uint256 rewardMinted)",
-  "event EnergyProofRejected(uint256 indexed proofId, uint256 indexed nodeId, string reason)"
+  "event EnergyProofRejected(uint256 indexed proofId, uint256 indexed nodeId, string reason)",
+  "event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)"
 ];
 
 const PRESALE_ABI = [
   "function owner() view returns (address)",
+  "function pendingOwner() view returns (address)",
   "function pwrToken() view returns (address)",
   "function state() view returns (uint8)",
   "function fundingGoalWei() view returns (uint256)",
   "function totalRaisedWei() view returns (uint256)",
   "function totalTokensSold() view returns (uint256)",
   "function tokensDepositedForClaims() view returns (uint256)",
+  "function totalTokensClaimed() view returns (uint256)",
   "function currentPhaseIndex() view returns (uint256)",
   "function contributionsWei(address) view returns (uint256)",
   "function tokenAllocations(address) view returns (uint256)",
@@ -162,8 +183,13 @@ const PRESALE_ABI = [
   "function cancelPresale()",
   "function withdrawRaisedFunds(address to)",
   "function recoverUnclaimedTokens(address to, uint256 amount)",
+  "function recoverDepositedTokensAfterCancel(address to, uint256 amount)",
   "function claim()",
   "function claimRefund()",
+  "function transferOwnership(address newOwner)",
+  "function acceptOwnership()",
+  "function cancelOwnershipTransfer()",
+  "function renounceOwnership()",
   "function pause()",
   "function unpause()",
   "function paused() view returns (bool)",
@@ -172,19 +198,25 @@ const PRESALE_ABI = [
   "function referralCount(address) view returns (uint256)",
   "function referralVolumeWei(address) view returns (uint256)",
   "function referralBonusEarned(address) view returns (uint256)",
+  "function referralBlocked(address) view returns (bool)",
   "function refereeBonusBps() view returns (uint256)",
   "function referrerBonusBps() view returns (uint256)",
   "function totalReferralBonusIssued() view returns (uint256)",
   "function setReferralBps(uint256 newRefereeBonusBps, uint256 newReferrerBonusBps)",
+  "function setReferralBlocked(address referrer, bool blocked)",
   "event Contributed(address indexed contributor, uint256 phaseIndex, uint256 weiAmount, uint256 tokensAllocated)",
   "event PresaleFinalized(uint256 totalRaisedWei, uint256 totalTokensSold)",
   "event Claimed(address indexed contributor, uint256 tokenAmount)",
   "event ReferralLinked(address indexed referee, address indexed referrer)",
-  "event ReferralBonusPaid(address indexed referee, address indexed referrer, uint256 refereeBonus, uint256 referrerBonus)"
+  "event ReferralBonusPaid(address indexed referee, address indexed referrer, uint256 refereeBonus, uint256 referrerBonus)",
+  "event ReferrerBlocked(address indexed referrer, bool blocked)",
+  "event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)"
 ];
 
 const ANNOUNCEMENTS_ABI = [
   "function owner() view returns (address)",
+  "function pendingOwner() view returns (address)",
   "function nextPostId() view returns (uint256)",
   "function totalPosts() view returns (uint256)",
   "function editors(address) view returns (bool)",
@@ -196,13 +228,19 @@ const ANNOUNCEMENTS_ABI = [
   "function archivePost(uint256 postId)",
   "function unarchivePost(uint256 postId)",
   "function setEditor(address editorAddr, bool allowed)",
+  "function transferOwnership(address newOwner)",
+  "function acceptOwnership()",
+  "function cancelOwnershipTransfer()",
+  "function renounceOwnership()",
   "function pause()",
   "function unpause()",
   "function paused() view returns (bool)",
   "event PostPublished(uint256 indexed postId, address indexed author, string title, string tag)",
   "event PostEdited(uint256 indexed postId, address indexed editor)",
   "event PostArchived(uint256 indexed postId)",
-  "event PostUnarchived(uint256 indexed postId)"
+  "event PostUnarchived(uint256 indexed postId)",
+  "event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)"
 ];
 
 const TIMELOCK_ABI = [
@@ -227,6 +265,7 @@ const TIMELOCK_ABI = [
 const VESTING_ABI = [
   "function pwrToken() view returns (address)",
   "function owner() view returns (address)",
+  "function pendingOwner() view returns (address)",
   "function totalAllocated() view returns (uint256)",
   "function totalReleased() view returns (uint256)",
   "function beneficiaryCount() view returns (uint256)",
@@ -238,20 +277,27 @@ const VESTING_ABI = [
   "function createVestingSchedule(address beneficiary, uint256 totalAmount, uint256 startTime, uint256 cliffSeconds, uint256 durationSeconds, bool revocable)",
   "function revoke(address beneficiary)",
   "function release()",
+  "function transferOwnership(address newOwner)",
+  "function acceptOwnership()",
+  "function cancelOwnershipTransfer()",
+  "function renounceOwnership()",
   "event ScheduleCreated(address indexed beneficiary, uint256 totalAmount, uint256 startTime, uint256 cliffSeconds, uint256 durationSeconds, bool revocable)",
   "event TokensReleased(address indexed beneficiary, uint256 amount)",
-  "event ScheduleRevoked(address indexed beneficiary, uint256 vestedAndKept, uint256 unvestedReturned)"
+  "event ScheduleRevoked(address indexed beneficiary, uint256 vestedAndKept, uint256 unvestedReturned)",
+  "event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)"
 ];
 
 const GOVERNOR_ABI = [
   "function owner() view returns (address)",
+  "function pendingOwner() view returns (address)",
   "function stakeToken() view returns (address)",
   "function nextProposalId() view returns (uint256)",
   "function proposalThreshold() view returns (uint256)",
   "function votingPeriodSeconds() view returns (uint256)",
   "function quorumBps() view returns (uint256)",
-  "function proposals(uint256) view returns (uint256 id, address proposer, string title, string description, uint256 startTime, uint256 endTime, uint256 forVotes, uint256 againstVotes, uint256 abstainVotes, bool executed)",
-  "function getProposal(uint256 proposalId) view returns (tuple(uint256 id, address proposer, string title, string description, uint256 startTime, uint256 endTime, uint256 forVotes, uint256 againstVotes, uint256 abstainVotes, bool executed))",
+  "function proposals(uint256) view returns (uint256 id, address proposer, string title, string description, uint256 startTime, uint256 endTime, uint256 forVotes, uint256 againstVotes, uint256 abstainVotes, bool executed, uint256 snapshotBlock)",
+  "function getProposal(uint256 proposalId) view returns (tuple(uint256 id, address proposer, string title, string description, uint256 startTime, uint256 endTime, uint256 forVotes, uint256 againstVotes, uint256 abstainVotes, bool executed, uint256 snapshotBlock))",
   "function hasVoted(uint256, address) view returns (bool)",
   "function state(uint256 proposalId) view returns (uint8)",
   "function propose(string title, string description) returns (uint256)",
@@ -260,9 +306,15 @@ const GOVERNOR_ABI = [
   "function setProposalThreshold(uint256 newThreshold)",
   "function setVotingPeriod(uint256 newPeriodSeconds)",
   "function setQuorumBps(uint256 newQuorumBps)",
+  "function transferOwnership(address newOwner)",
+  "function acceptOwnership()",
+  "function cancelOwnershipTransfer()",
+  "function renounceOwnership()",
   "event ProposalCreated(uint256 indexed proposalId, address indexed proposer, string title, uint256 startTime, uint256 endTime)",
   "event VoteCast(uint256 indexed proposalId, address indexed voter, uint8 support, uint256 weight)",
-  "event ProposalExecuted(uint256 indexed proposalId)"
+  "event ProposalExecuted(uint256 indexed proposalId)",
+  "event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)"
 ];
 
 // Human-readable labels for on-chain enums

@@ -42,9 +42,28 @@ interface IPowerComputeMintable is IERC20 {
 // Access control & safety primitives
 // ---------------------------------------------------------------------
 
+/**
+ * @dev Two-step ownership transfer (audit fix — see finding #11: a
+ *      single-step `transferOwnership` means a typo'd address permanently
+ *      and unrecoverably bricks owner-only functions on that contract,
+ *      forever). Step 1: current owner calls `transferOwnership(newOwner)`,
+ *      which only *proposes* the new owner and changes nothing else. Step
+ *      2: the proposed address must itself call `acceptOwnership()` to
+ *      complete the handover. If step 1 was mistyped, the mistaken address
+ *      simply never calls `acceptOwnership()` and the current owner keeps
+ *      full control — nothing is lost.
+ *
+ *      When transferring ownership to a `PowerComputeTimelock` instance,
+ *      the acceptance call is itself queued/executed through the timelock
+ *      (target = this contract, data = abi.encodeWithSignature
+ *      ("acceptOwnership()")) so the timelock's own address becomes
+ *      `msg.sender` for that call, satisfying the pending-owner check.
+ */
 abstract contract Ownable {
     address private _owner;
+    address private _pendingOwner;
 
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     constructor(address initialOwner) {
@@ -62,15 +81,51 @@ abstract contract Ownable {
         return _owner;
     }
 
-    function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0), "Ownable: zero address");
-        emit OwnershipTransferred(_owner, newOwner);
-        _owner = newOwner;
+    function pendingOwner() public view returns (address) {
+        return _pendingOwner;
     }
 
+    /**
+     * @notice Step 1/2: propose `newOwner`. Ownership does NOT change yet —
+     *         `newOwner` must call `acceptOwnership()` themselves.
+     */
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "Ownable: zero address");
+        _pendingOwner = newOwner;
+        emit OwnershipTransferStarted(_owner, newOwner);
+    }
+
+    /**
+     * @notice Step 2/2: the currently-pending owner accepts, completing
+     *         the transfer. Reverts for anyone else, including the current
+     *         owner.
+     */
+    function acceptOwnership() public {
+        require(msg.sender == _pendingOwner, "Ownable: caller is not the pending owner");
+        address previousOwner = _owner;
+        _owner = _pendingOwner;
+        _pendingOwner = address(0);
+        emit OwnershipTransferred(previousOwner, _owner);
+    }
+
+    /**
+     * @notice Cancel a proposed transfer before it's been accepted.
+     */
+    function cancelOwnershipTransfer() public onlyOwner {
+        _pendingOwner = address(0);
+    }
+
+    /**
+     * @notice Permanently give up ownership. Deliberately remains a
+     *         single-step, immediate action (unlike transferOwnership) —
+     *         this is meant to be a final, no-going-back statement, e.g.
+     *         once a DAO/timelock has taken over and the deployer wants to
+     *         provably remove their own remaining control.
+     */
     function renounceOwnership() public onlyOwner {
         emit OwnershipTransferred(_owner, address(0));
         _owner = address(0);
+        _pendingOwner = address(0);
     }
 }
 

@@ -80,13 +80,14 @@ network access required.
 ### `PowerComputeToken.sol` ($PWR)
 - Standard ERC-20, 18 decimals, hard-capped at **1,000,000,000 $PWR**.
 - Built-in staking: `stake(amount)`, `unstake(amount)`, `claimRewards()` — rewards accrue continuously via a MasterChef-style accumulator, funded by `fundRewardsPool(amount)`.
+- **Checkpointed stake history**: every `stake`/`unstake` records a block-indexed checkpoint (`getPastStakedBalance`, `getPastTotalStaked`), used by `PowerComputeGovernor` for snapshot-based voting power (see finding #4 in Section 13).
 - Protocol emissions: `mintReward(to, amount)` — callable only by addresses on the `minters` allowlist (set via `setMinter(addr, true)`). This is how `NodeRegistry` pays PoEC rewards without needing custody of tokens.
-- Admin: `mint()` (grants/liquidity, capped), `setRewardRatePerSecond()`, `setUnstakeCooldown()`, `pause()/unpause()`, `recoverForeignToken()`.
+- Admin: `mint()` (grants/liquidity, capped), `setRewardRatePerSecond()`, `setUnstakeCooldown()` (capped at `MAX_UNSTAKE_COOLDOWN` = 30 days), `pause()/unpause()`, `recoverForeignToken()` (now return-value-checked).
 
 ### `NodeRegistry.sol`
 - **Node lifecycle:** `registerNode(gpuModel, gpuCount, energySiteId, region)` → `Pending` → `verifyNode()` (oracle/owner) → `Active` → optionally `suspendNode()` / `reinstateNode()` → `retireNode()` (operator or oracle/owner, permanent).
-- **PoEC reward pipeline:** operator calls `submitEnergyProof(nodeId, kWhRouted, periodStart, periodEnd)` → oracle/owner calls `approveEnergyProof(proofId)` (mints `kWhRouted * rewardPerKwh` in $PWR directly to the operator) or `rejectEnergyProof(proofId, reason)`.
-- **Batch admin:** `batchVerifyNodes(nodeIds[])` and `batchApproveEnergyProofs(proofIds[])` process a list in one transaction, silently skipping entries that are already resolved/invalid rather than reverting the whole batch.
+- **PoEC reward pipeline:** operator calls `submitEnergyProof(nodeId, kWhRouted, periodStart, periodEnd)`, which **locks in the current `rewardPerKwh` on the proof itself** (`rewardPerKwhAtSubmission`) so a later rate change can never affect an already-submitted proof's payout (finding #5). Oracle/owner then calls `approveEnergyProof(proofId)` (mints `kWhRouted * rewardPerKwhAtSubmission` in $PWR to the operator) or `rejectEnergyProof(proofId, reason)`.
+- **Batch admin:** `batchVerifyNodes(nodeIds[])` and `batchApproveEnergyProofs(proofIds[])` process up to `MAX_BATCH_SIZE` (100) items in one transaction, silently skipping entries that are already resolved/invalid rather than reverting the whole batch.
 - **Admin:** `setOracle(addr, allowed)` (multiple oracles supported), `setRewardPerKwh()`, `setMaxKwhPerProof()`, `pause()/unpause()`.
 - **⚠️ Must be approved as a token minter** — see deployment Step 3.5.
 
@@ -94,8 +95,9 @@ network access required.
 - Owner adds one or more phases via `addPhase(priceWeiPerToken, capWei)` while `Configuring`, then calls `startPresale()`.
 - Contributors call `contribute()` (or `contributeWithReferral(referrer)` — see Section 4) with ETH attached — automatically splits across phase boundaries if a contribution would overflow the current phase's cap.
 - Owner deposits enough $PWR to cover `totalTokensSold` (which includes referral bonuses) via `depositTokensForClaims(amount)`, then calls `finalize()` to lock the raise and open claims.
-- Contributors call `claim()`. If cancelled instead (`cancelPresale()`), they call `claimRefund()`.
-- Owner sweeps raised ETH via `withdrawRaisedFunds(to)` once finalized.
+- Contributors call `claim()`. If cancelled instead (`cancelPresale()`), they call `claimRefund()`, and the owner can recover any deposited $PWR via `recoverDepositedTokensAfterCancel()` (finding #8).
+- Owner sweeps raised ETH via `withdrawRaisedFunds(to)` once finalized. `recoverUnclaimedTokens(to, amount)` is now **strictly capped** to `tokensDepositedForClaims - totalTokensSold` — the genuine surplus/dust only, never anything still owed to a contributor (finding #1, see Section 13).
+- `setReferralBlocked(referrer, bool)` lets the owner cut off a specific address's future referral bonuses if Sybil abuse is detected (finding #6 mitigation).
 
 ### `PowerComputeAnnouncements.sol`
 - Owner (or an address approved via `setEditor(addr, true)`) calls `publish(title, body, tag, externalUrl)` to post an article. Anyone can read via `getPost(id)` or `getRecentPosts(limit)`.
@@ -110,10 +112,10 @@ network access required.
 - Revocable schedules can be cancelled by the owner via `revoke(beneficiary)` — already-vested tokens remain claimable by the beneficiary; the unvested remainder returns to the owner immediately.
 
 ### `PowerComputeGovernor.sol`
-- Voting power = live `stakedBalanceOf` on `PowerComputeToken` — no separate snapshot/delegation system, so increasing your stake increases your vote weight immediately.
-- Anyone with at least `proposalThreshold` staked $PWR can call `propose(title, description)`.
-- Anyone with staked $PWR can call `castVote(proposalId, support)` during the voting window (`support`: 0=against, 1=for, 2=abstain), once per proposal.
-- A proposal `Succeeds` if total votes cast meet `quorumBps` (default 5% of total staked) **and** "for" votes exceed "against" votes by the time voting closes.
+- Voting power = your **checkpointed** `stakedBalanceOf` on `PowerComputeToken`, snapshotted at the block a proposal was created (`getPastStakedBalance`/`getPastTotalStaked`) — not a live balance. Staking or unstaking after a proposal exists has zero effect on that proposal's outcome (see Section 13, finding #4).
+- Anyone with at least `proposalThreshold` staked $PWR (checked live, at proposal-creation time) can call `propose(title, description)`.
+- Anyone who had staked $PWR **as of the proposal's snapshot block** can call `castVote(proposalId, support)` during the voting window (`support`: 0=against, 1=for, 2=abstain), once per proposal.
+- A proposal `Succeeds` if total votes cast meet `quorumBps` (default 5% of total staked **at the snapshot block**) **and** "for" votes exceed "against" votes by the time voting closes.
 - **This is intentionally advisory** — passing a vote does not automatically execute anything on-chain. The owner calls `markExecuted(proposalId)` to record that the team has acted on it. This keeps the trust model simple: the community signals its will, and execution stays a deliberate, accountable action (potentially through the Timelock below).
 
 ### `PowerComputeTimelock.sol`
@@ -217,7 +219,12 @@ single owner key by default. Before putting any real value behind it:
 3. **Transfer ownership** of `PowerComputeToken`, `NodeRegistry`,
    `PowerComputePresale`, `PowerComputeAnnouncements`, `PowerComputeVesting`,
    and `PowerComputeGovernor` to the Timelock address, via the admin
-   Settings tab's "Transfer Ownership" control (one contract at a time).
+   Settings tab's ownership controls (one contract at a time). Transfers
+   are **two-step**: proposing a new owner via `transferOwnership()`
+   changes nothing by itself — the Timelock address must itself call
+   `acceptOwnership()` (typically queued through the Timelock's own
+   `queueTransaction`/`executeTransaction`) to complete the handover. A
+   typo'd address can never accidentally brick a contract (finding #11).
 4. From then on, every sensitive call (`mint`, `withdrawRaisedFunds`,
    `setRewardRatePerSecond`, etc.) must be **queued** in the admin Timelock
    tab, wait out the public delay, and then be **executed** — giving your
@@ -225,7 +232,9 @@ single owner key by default. Before putting any real value behind it:
    takes effect.
 5. **Get a real audit** before mainnet — even a budget option (a solo
    auditor or a Code4rena-style contest) beats none. See Section 8 for the
-   test suite that should be the starting point for any auditor.
+   test suite that should be the starting point for any auditor, and
+   Section 13 for a full internal review this project has already been
+   through.
 
 ---
 
@@ -234,8 +243,10 @@ single owner key by default. Before putting any real value behind it:
 A Hardhat/Mocha/Chai test suite lives in [`test/`](./test), covering:
 
 - **`PowerComputeToken.test.js`** — deployment invariants, staking reward-accrual math over time, unstake cooldown enforcement, minter allowlist (mint/revoke), `MAX_SUPPLY` guard, pause/access control.
-- **`PowerComputePresale.test.js`** — phase configuration guards, **exact token-allocation math across a multi-phase contribution split**, referral linking + self-referral rejection + exact 3%/5% bonus math + bonus persistence on later plain `contribute()` calls, claim/double-claim-revert, cancel + refund with gas-accounted balance verification.
-- **`NodeRegistry.test.js`** — node lifecycle, PoEC reward math (`kWhRouted * rewardPerKwh`), and the **batch functions**: correct per-item reward minting, silently skipping already-resolved/nonexistent entries instead of reverting the whole batch, access control.
+- **`PowerComputePresale.test.js`** — phase configuration guards, **exact token-allocation math across a multi-phase contribution split**, referral linking + self-referral rejection + exact 3%/5% bonus math + bonus persistence on later plain `contribute()` calls, claim/double-claim-revert, cancel + refund with gas-accounted balance verification, **plus a dedicated audit-regression suite for the `recoverUnclaimedTokens` fix (finding #1)**, cancellation recovery (finding #8), and referral blocking (finding #6).
+- **`NodeRegistry.test.js`** — node lifecycle, PoEC reward math, and the **batch functions**: correct per-item reward minting, silently skipping already-resolved/nonexistent entries instead of reverting the whole batch, access control, `MAX_BATCH_SIZE` enforcement, **plus a dedicated audit-regression suite proving rewards use the rate locked at submission time, not a later live rate (finding #5)**.
+- **`PowerComputeVesting.test.js`** — schedule funding/creation, linear vesting math, revocation semantics, **plus a dedicated audit-regression suite proving a revoked-but-not-fully-released schedule cannot be overwritten and orphan a beneficiary's tokens (finding #3)**.
+- **`PowerComputeGovernor.test.js`** — checkpointing on the token, basic propose/vote flow, **plus a dedicated audit-regression suite proving stake placed after a proposal is created carries zero voting weight on it, and that quorum is computed against the same historical snapshot as the votes ("flash-stake" immunity, finding #4)**.
 
 **⚠️ Note on this repo's dev environment:** the dApp itself needs zero
 build tooling (static HTML + CDN scripts). The test suite is the one part
@@ -323,6 +334,47 @@ vercel --prod
 - [ ] *(If hardening for production)* Ownership of all contracts transferred to a Timelock controlled by a multisig — see Section 7.
 - [ ] Updated social links, GitHub link, and docs link in `index.html`'s footer.
 - [ ] *(Optional)* Verified contract source on [BaseScan Sepolia](https://sepolia.basescan.org).
+
+---
+
+## 13. Audit Findings & Fixes
+
+This section documents a manual security review performed on this
+codebase by its own author (i.e. **self-review, not an independent
+third-party audit** — see the disclaimer below). 12 findings were
+identified; 10 were fixed directly in the code (with regression tests
+added in `test/`), 1 was mitigated with an on-chain circuit breaker since
+it cannot be fully solved without off-chain identity checks, and 1 is a
+process/deployment recommendation rather than a code bug.
+
+| # | Severity | Contract | Finding | Status |
+|---|---|---|---|---|
+| 1 | 🔴 Critical | Presale | `recoverUnclaimedTokens()` had no bound — owner could drain all contributor allocations immediately after `finalize()`, before anyone claimed | ✅ **Fixed** — strictly capped to `tokensDepositedForClaims - totalTokensSold` (genuine surplus only) |
+| 2 | 🟠 High | All | Single-owner-key centralization: no timelock is active by default | ⚠️ **Process recommendation, not a code bug** — `PowerComputeTimelock.sol` exists; you must deploy it and transfer ownership yourself (Section 7) |
+| 3 | 🟠 High | Vesting | A revoked-but-not-fully-released schedule could be overwritten by a new one, orphaning the beneficiary's already-vested tokens | ✅ **Fixed** — `createVestingSchedule` now requires `released >= totalAmount` unconditionally, regardless of revocation status |
+| 4 | 🟠 High | Governor | No snapshotted voting power — "flash-stake" voting manipulation was possible | ✅ **Fixed** — `PowerComputeToken` now checkpoints stake history; the Governor snapshots a `snapshotBlock` at proposal creation and reads historical balances for every vote and for quorum |
+| 5 | 🟡 Medium | NodeRegistry | `rewardPerKwh` was applied at approval time, not submission time — timing-dependent payout manipulation | ✅ **Fixed** — the rate is locked into the proof itself (`rewardPerKwhAtSubmission`) at `submitEnergyProof()` time |
+| 6 | 🟡 Medium | Presale | Referral program has unbounded Sybil-abuse exposure (one person controlling both referrer/referee wallets) | ⚠️ **Mitigated, not eliminated** — `setReferralBlocked()` lets the owner cut off a specific referrer's future bonuses on detection; this is inherent to any on-chain referral system without off-chain KYC |
+| 7 | 🟡 Medium | Token | `unstakeCooldown` had no max bound and applied retroactively — owner could freeze all stakers' exits indefinitely | ✅ **Fixed** — hard-capped at `MAX_UNSTAKE_COOLDOWN` (30 days) |
+| 8 | 🟡 Medium | Presale | Deposited claim tokens became permanently stuck if the presale was cancelled after funding | ✅ **Fixed** — new `recoverDepositedTokensAfterCancel()`, usable only in the `Cancelled` state |
+| 9 | 🟢 Low | Token | `recoverForeignToken` didn't check the ERC-20 `transfer()` return value | ✅ **Fixed** — now reverts with `require(ok, ...)` if the transfer reports failure |
+| 10 | 🟢 Low | NodeRegistry | Batch functions had no array-length cap (self-inflicted gas griefing only) | ✅ **Fixed** — `MAX_BATCH_SIZE` (100) enforced on both batch functions |
+| 11 | ℹ️ Informational | All (base) | `transferOwnership` was single-step — a typo'd address could permanently brick a contract | ✅ **Fixed** — two-step transfer (`transferOwnership` → `acceptOwnership`) across every contract, plus `cancelOwnershipTransfer()` |
+| 12 | ℹ️ Informational | NodeRegistry | PoEC energy data has zero on-chain verification — it's a pure oracle-trust system by design | ⚠️ **Acknowledged design tradeoff, not a bug** — this is inherent to bridging real-world energy data on-chain without a hardware attestation network; mitigate via multiple independent oracles (`setOracle`) and off-chain meter cross-checks before approval |
+
+**How to verify these fixes yourself:** every fix marked ✅ has a
+corresponding regression test in `test/` (see Section 8) that fails
+against the pre-fix behavior and passes against the current code. Run
+`npx hardhat test` and read the `describe("Audit fix: ...")` blocks in
+each file for the exact before/after behavior being pinned down.
+
+**Honesty about limitations of this review:** this was a manual,
+single-pass reading of the code by the same author who wrote it — not
+independent, not backed by fuzzing/formal verification tools, and not
+performed by a licensed security firm with liability. Treat every finding
+above as real and fixed, but do not treat the absence of further findings
+as proof the code is safe. Get an actual third-party audit before any
+mainnet deployment with real funds (Section 7, step 5).
 
 ## Local Preview
 
