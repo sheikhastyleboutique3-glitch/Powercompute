@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
 <title>Admin Panel — PowerCompute ($PWR)</title>
-<meta name="description" content="Owner-only administration console for the PowerCompute protocol: token emissions, node verification, energy proof review, and presale management." />
+<meta name="description" content="Owner-only administration console for the PowerCompute protocol." />
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -41,7 +42,7 @@
   <div class="absolute top-1/3 -right-40 w-[36rem] h-[36rem] bg-cyan-500/15 rounded-full blur-[130px]"></div>
 </div>
 
-<!-- ================= NAVBAR ================= -->
+<!-- ================= NAVBAR (minimal — no public admin promotion) ================= -->
 <header class="sticky top-0 z-50 border-b border-white/5 backdrop-blur-xl bg-charcoal/70">
   <div class="max-w-7xl mx-auto px-5 lg:px-8 h-16 flex items-center justify-between">
     <a href="index.html" class="flex items-center gap-2.5 font-bold text-lg">
@@ -50,335 +51,463 @@
       </span>
       <span>Power<span class="text-gradient">Compute</span></span>
     </a>
-    <nav class="hidden md:flex items-center gap-7 text-sm text-slate-300">
-      <a href="index.html" class="nav-link">Home</a>
-      <a href="index.html#staking" class="nav-link">Staking</a>
-      <a href="dashboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="server" class="w-3.5 h-3.5"></i>Node Dashboard</a>
-      <a href="admin.html" class="nav-link active flex items-center gap-1.5"><i data-lucide="shield" class="w-3.5 h-3.5"></i>Admin</a>
-    </nav>
-    <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+    <span class="hidden sm:flex items-center gap-2 text-xs mono text-slate-500">
+      <i data-lucide="lock" class="w-3.5 h-3.5"></i> Restricted Console
+    </span>
+    <button data-connect-wallet class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
       <i data-lucide="wallet" class="w-4 h-4"></i>
       <span data-wallet-label>Connect Wallet</span>
-    </button>
-    <button id="mobile-menu-btn" class="md:hidden text-slate-300">
-      <i data-lucide="menu" class="w-6 h-6"></i>
-    </button>
-  </div>
-  <div id="mobile-menu" class="hidden md:hidden border-t border-white/5 bg-charcoal/95 px-5 py-4 space-y-3 text-sm">
-    <a href="index.html" class="block text-slate-300">Home</a>
-    <a href="index.html#staking" class="block text-slate-300">Staking</a>
-    <a href="dashboard.html" class="block text-slate-300">Node Dashboard</a>
-    <a href="admin.html" class="block text-slate-300">Admin Panel</a>
-    <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
-      <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
     </button>
   </div>
 </header>
 
 <main class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
 
-  <!-- ================= PAGE HEADER ================= -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-    <div>
-      <div class="glass glass-border-glow rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-mono text-emerald-glow w-fit mb-3">
-        <i data-lucide="shield" class="w-3.5 h-3.5"></i> Protocol Administration
+  <!-- ================================================================
+       ACCESS GATE — this is the ONLY thing rendered until the connected
+       wallet is verified as the contract owner. No stats, no controls,
+       no content leak to the public or to non-owner wallets.
+       ================================================================ -->
+  <div id="access-gate" class="max-w-lg mx-auto text-center py-16">
+    <div class="glass glass-border-glow rounded-3xl p-10">
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center mx-auto mb-6">
+        <i data-lucide="shield-alert" class="w-8 h-8 text-emerald-glow" id="gate-icon"></i>
       </div>
-      <h1 class="text-3xl lg:text-4xl font-bold">Admin Panel</h1>
-      <p class="text-slate-400 text-sm mt-1">Owner-gated controls for PowerComputeToken, NodeRegistry, and PowerComputePresale.</p>
-    </div>
-    <p data-wallet-status class="text-xs mono text-slate-500"></p>
-  </div>
-
-  <!-- ================= ACCESS BANNERS ================= -->
-  <div id="banner-not-connected" class="glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
-    <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 shrink-0"></i>
-    <p class="text-sm text-slate-300">Connect the wallet that owns the PowerCompute contracts to access admin controls.</p>
-  </div>
-  <div id="banner-not-owner" class="hidden glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
-    <i data-lucide="lock" class="w-5 h-5 text-red-400 shrink-0"></i>
-    <p class="text-sm text-slate-300">Your connected wallet is not the owner of the $PWR token contract. Admin actions are disabled — you can still view protocol stats below.</p>
-  </div>
-  <div id="banner-not-configured" class="hidden glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
-    <i data-lucide="settings" class="w-5 h-5 text-cyan-glow shrink-0"></i>
-    <p class="text-sm text-slate-300">No contracts configured yet. Deploy the contracts in <span class="mono">/contracts</span> and set the 3 addresses in <span class="mono">assets/js/config.js</span> to unlock this panel.</p>
-  </div>
-
-  <!-- ================= PROTOCOL OVERVIEW ================= -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-    <div class="glass glass-border-glow rounded-2xl p-5">
-      <i data-lucide="coins" class="w-5 h-5 text-emerald-glow mb-2"></i>
-      <p class="text-xl font-bold mono" id="ov-total-supply">--</p>
-      <p class="text-xs text-slate-400 mt-1">Circulating Supply</p>
-    </div>
-    <div class="glass glass-border-glow rounded-2xl p-5">
-      <i data-lucide="layers" class="w-5 h-5 text-cyan-glow mb-2"></i>
-      <p class="text-xl font-bold mono" id="ov-total-staked">--</p>
-      <p class="text-xs text-slate-400 mt-1">Total Staked</p>
-    </div>
-    <div class="glass glass-border-glow rounded-2xl p-5">
-      <i data-lucide="gift" class="w-5 h-5 text-emerald-glow mb-2"></i>
-      <p class="text-xl font-bold mono" id="ov-rewards-pool">--</p>
-      <p class="text-xs text-slate-400 mt-1">Staking Rewards Pool</p>
-    </div>
-    <div class="glass glass-border-glow rounded-2xl p-5">
-      <i data-lucide="server" class="w-5 h-5 text-cyan-glow mb-2"></i>
-      <p class="text-xl font-bold mono" id="ov-active-nodes">--</p>
-      <p class="text-xs text-slate-400 mt-1">Active Nodes</p>
-    </div>
-    <div class="glass glass-border-glow rounded-2xl p-5">
-      <i data-lucide="battery-charging" class="w-5 h-5 text-emerald-glow mb-2"></i>
-      <p class="text-xl font-bold mono" id="ov-energy-routed">--</p>
-      <p class="text-xs text-slate-400 mt-1">Total Energy Routed (kWh)</p>
-    </div>
-    <div class="glass glass-border-glow rounded-2xl p-5">
-      <i data-lucide="sparkles" class="w-5 h-5 text-cyan-glow mb-2"></i>
-      <p class="text-xl font-bold mono" id="ov-emissions-minted">--</p>
-      <p class="text-xs text-slate-400 mt-1">Emission Rewards Minted</p>
-    </div>
-    <div class="glass glass-border-glow rounded-2xl p-5">
-      <i data-lucide="shopping-cart" class="w-5 h-5 text-emerald-glow mb-2"></i>
-      <p class="text-xl font-bold mono" id="ov-presale-state">--</p>
-      <p class="text-xs text-slate-400 mt-1">Presale State</p>
-    </div>
-    <div class="glass glass-border-glow rounded-2xl p-5">
-      <i data-lucide="trending-up" class="w-5 h-5 text-cyan-glow mb-2"></i>
-      <p class="text-xl font-bold mono" id="ov-presale-raised">--</p>
-      <p class="text-xs text-slate-400 mt-1">Presale ETH Raised</p>
-    </div>
-  </div>
-
-  <!-- ================= PENDING NODES REVIEW QUEUE ================= -->
-  <div data-admin-only class="hidden glass glass-border-glow rounded-3xl p-6 lg:p-7 mb-8">
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="font-bold text-lg flex items-center gap-2">
-        <i data-lucide="shield-check" class="w-5 h-5 text-emerald-glow"></i> Pending Node Verification Queue
-      </h2>
-      <button id="btn-refresh-pending-nodes" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
-        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+      <h1 class="text-2xl font-bold mb-2" id="gate-title">Restricted Access</h1>
+      <p class="text-sm text-slate-400 mb-6" id="gate-message">
+        This console is only accessible to the wallet that owns the PowerCompute contracts. Connect your wallet to verify access.
+      </p>
+      <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+        <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
       </button>
-    </div>
-    <div class="overflow-x-auto scrollbar-thin">
-      <table class="pc-table">
-        <thead>
-          <tr>
-            <th>Node ID</th><th>Operator</th><th>GPU Model</th><th>GPUs</th><th>Region</th><th>Energy Site</th><th>Registered</th><th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="pending-nodes-tbody">
-          <tr><td colspan="8" class="text-center text-slate-500 py-8">Connect an owner/oracle wallet to load the queue.</td></tr>
-        </tbody>
-      </table>
+      <p class="text-xs mono text-slate-600 mt-5" id="gate-address-hint"></p>
     </div>
   </div>
 
-  <!-- ================= PENDING ENERGY PROOFS REVIEW QUEUE ================= -->
-  <div data-admin-only class="hidden glass glass-border-glow rounded-3xl p-6 lg:p-7 mb-10">
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="font-bold text-lg flex items-center gap-2">
-        <i data-lucide="file-check-2" class="w-5 h-5 text-cyan-glow"></i> Pending Energy Proof Review Queue
-      </h2>
-      <button id="btn-refresh-pending-proofs" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
-        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+  <!-- ================================================================
+       ADMIN CONSOLE — hidden entirely until access-granted. Everything
+       below this point, including "public" protocol stats, only renders
+       for the verified owner wallet.
+       ================================================================ -->
+  <div id="admin-console" class="hidden">
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div>
+        <div class="glass glass-border-glow rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-mono text-emerald-glow w-fit mb-3">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Access Verified — Owner
+        </div>
+        <h1 class="text-3xl lg:text-4xl font-bold">Admin Console</h1>
+        <p class="text-slate-400 text-sm mt-1">Full control over PowerComputeToken, NodeRegistry, Presale, and Announcements.</p>
+      </div>
+      <p data-wallet-status class="text-xs mono text-slate-500"></p>
+    </div>
+
+    <div id="banner-not-configured" class="hidden glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
+      <i data-lucide="settings" class="w-5 h-5 text-cyan-glow shrink-0"></i>
+      <p class="text-sm text-slate-300">No contracts configured yet. Deploy the contracts in <span class="mono">/contracts</span> and set the addresses in <span class="mono">assets/js/config.js</span>.</p>
+    </div>
+
+    <!-- ================= TAB NAV ================= -->
+    <div class="flex items-center gap-2 mb-8 glass rounded-full p-1 w-fit overflow-x-auto scrollbar-thin">
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="overview">Overview</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="queue">Review Queue</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="controls">Protocol Controls</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="content">Content</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="settings">Settings</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="activity">Activity Log</button>
+    </div>
+
+    <!-- ================= TAB: OVERVIEW ================= -->
+    <section id="tab-overview" class="admin-tab-panel">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div class="glass glass-border-glow rounded-2xl p-5">
+          <i data-lucide="coins" class="w-5 h-5 text-emerald-glow mb-2"></i>
+          <p class="text-xl font-bold mono" id="ov-total-supply">--</p>
+          <p class="text-xs text-slate-400 mt-1">Circulating Supply</p>
+        </div>
+        <div class="glass glass-border-glow rounded-2xl p-5">
+          <i data-lucide="layers" class="w-5 h-5 text-cyan-glow mb-2"></i>
+          <p class="text-xl font-bold mono" id="ov-total-staked">--</p>
+          <p class="text-xs text-slate-400 mt-1">Total Staked</p>
+        </div>
+        <div class="glass glass-border-glow rounded-2xl p-5">
+          <i data-lucide="gift" class="w-5 h-5 text-emerald-glow mb-2"></i>
+          <p class="text-xl font-bold mono" id="ov-rewards-pool">--</p>
+          <p class="text-xs text-slate-400 mt-1">Staking Rewards Pool</p>
+        </div>
+        <div class="glass glass-border-glow rounded-2xl p-5">
+          <i data-lucide="server" class="w-5 h-5 text-cyan-glow mb-2"></i>
+          <p class="text-xl font-bold mono" id="ov-active-nodes">--</p>
+          <p class="text-xs text-slate-400 mt-1">Active Nodes</p>
+        </div>
+        <div class="glass glass-border-glow rounded-2xl p-5">
+          <i data-lucide="battery-charging" class="w-5 h-5 text-emerald-glow mb-2"></i>
+          <p class="text-xl font-bold mono" id="ov-energy-routed">--</p>
+          <p class="text-xs text-slate-400 mt-1">Total Energy Routed (kWh)</p>
+        </div>
+        <div class="glass glass-border-glow rounded-2xl p-5">
+          <i data-lucide="sparkles" class="w-5 h-5 text-cyan-glow mb-2"></i>
+          <p class="text-xl font-bold mono" id="ov-emissions-minted">--</p>
+          <p class="text-xs text-slate-400 mt-1">Emission Rewards Minted</p>
+        </div>
+        <div class="glass glass-border-glow rounded-2xl p-5">
+          <i data-lucide="shopping-cart" class="w-5 h-5 text-emerald-glow mb-2"></i>
+          <p class="text-xl font-bold mono" id="ov-presale-state">--</p>
+          <p class="text-xs text-slate-400 mt-1">Presale State</p>
+        </div>
+        <div class="glass glass-border-glow rounded-2xl p-5">
+          <i data-lucide="trending-up" class="w-5 h-5 text-cyan-glow mb-2"></i>
+          <p class="text-xl font-bold mono" id="ov-presale-raised">--</p>
+          <p class="text-xs text-slate-400 mt-1">Presale ETH Raised</p>
+        </div>
+      </div>
+      <button id="btn-refresh-overview" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition mt-2">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh stats
       </button>
-    </div>
-    <div class="overflow-x-auto scrollbar-thin">
-      <table class="pc-table">
-        <thead>
-          <tr>
-            <th>Proof ID</th><th>Node ID</th><th>Operator</th><th>kWh Routed</th><th>Est. Reward</th><th>Period</th><th>Submitted</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="pending-proofs-tbody">
-          <tr><td colspan="8" class="text-center text-slate-500 py-8">Connect an owner/oracle wallet to load the queue.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+    </section>
 
-  <!-- ================= ADMIN CONTROL GRID ================= -->
-  <div data-admin-only class="hidden grid lg:grid-cols-3 gap-6 mb-10">
-
-    <!-- ---------------- TOKEN CONTROLS ---------------- -->
-    <div class="glass glass-border-glow rounded-3xl p-6">
-      <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5 text-emerald-glow"></i> $PWR Token</h2>
-      <p class="text-xs text-slate-400 mb-5">PowerComputeToken.sol controls</p>
-
-      <div class="space-y-5">
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Mint tokens (grants/liquidity)</label>
-          <div class="flex gap-2">
-            <input id="token-mint-to" type="text" placeholder="Recipient 0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
-          </div>
-          <div class="flex gap-2 mt-2">
-            <input id="token-mint-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
-            <button id="btn-token-mint" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Mint</button>
-          </div>
+    <!-- ================= TAB: REVIEW QUEUE ================= -->
+    <section id="tab-queue" class="admin-tab-panel hidden">
+      <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7 mb-8">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-bold text-lg flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-glow"></i> Pending Node Verification Queue
+          </h2>
+          <button id="btn-refresh-pending-nodes" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
         </div>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Approve minter (e.g. NodeRegistry address)</label>
-          <div class="flex gap-2">
-            <input id="token-minter-addr" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
-            <button id="btn-token-set-minter-true" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Allow</button>
-            <button id="btn-token-set-minter-false" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold px-3 whitespace-nowrap">Revoke</button>
-          </div>
-          <button id="btn-token-set-minter-registry" class="mt-2 text-[11px] text-slate-400 hover:text-emerald-glow underline">Use configured NodeRegistry address</button>
+        <div class="overflow-x-auto scrollbar-thin">
+          <table class="pc-table">
+            <thead>
+              <tr><th>Node ID</th><th>Operator</th><th>GPU Model</th><th>GPUs</th><th>Region</th><th>Energy Site</th><th>Registered</th><th>Action</th></tr>
+            </thead>
+            <tbody id="pending-nodes-tbody">
+              <tr><td colspan="8" class="text-center text-slate-500 py-8">Loading...</td></tr>
+            </tbody>
+          </table>
         </div>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Fund staking rewards pool</label>
-          <div class="flex gap-2">
-            <input id="token-fund-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
-            <button id="btn-token-fund" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Fund</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Reward rate (wei $PWR / second)</label>
-          <div class="flex gap-2">
-            <input id="token-reward-rate" type="text" placeholder="e.g. 1000000000000000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
-            <button id="btn-token-set-rate" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Unstake cooldown (seconds)</label>
-          <div class="flex gap-2">
-            <input id="token-cooldown" type="number" min="0" placeholder="e.g. 86400" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
-            <button id="btn-token-set-cooldown" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between glass rounded-xl p-3">
-          <span class="text-xs text-slate-400">Contract paused</span>
-          <div class="flex gap-2">
-            <button id="btn-token-pause" class="text-xs px-3 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold">Pause</button>
-            <button id="btn-token-unpause" class="text-xs px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold">Unpause</button>
-          </div>
-        </div>
-
-        <p id="token-admin-status" class="text-xs mono text-slate-500 break-all"></p>
       </div>
-    </div>
 
-    <!-- ---------------- NODE REGISTRY CONTROLS ---------------- -->
-    <div class="glass glass-border-glow rounded-3xl p-6">
-      <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="server" class="w-5 h-5 text-cyan-glow"></i> Node Registry</h2>
-      <p class="text-xs text-slate-400 mb-5">NodeRegistry.sol controls</p>
-
-      <div class="space-y-5">
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Approve oracle address</label>
-          <div class="flex gap-2">
-            <input id="registry-oracle-addr" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
-            <button id="btn-registry-set-oracle-true" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Allow</button>
-            <button id="btn-registry-set-oracle-false" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold px-3 whitespace-nowrap">Revoke</button>
-          </div>
+      <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-bold text-lg flex items-center gap-2">
+            <i data-lucide="file-check-2" class="w-5 h-5 text-cyan-glow"></i> Pending Energy Proof Review Queue
+          </h2>
+          <button id="btn-refresh-pending-proofs" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
         </div>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Reward per kWh (wei $PWR)</label>
-          <div class="flex gap-2">
-            <input id="registry-reward-per-kwh" type="text" placeholder="e.g. 420000000000000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
-            <button id="btn-registry-set-reward" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
-          </div>
+        <div class="overflow-x-auto scrollbar-thin">
+          <table class="pc-table">
+            <thead>
+              <tr><th>Proof ID</th><th>Node ID</th><th>Operator</th><th>kWh Routed</th><th>Est. Reward</th><th>Period</th><th>Submitted</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="pending-proofs-tbody">
+              <tr><td colspan="8" class="text-center text-slate-500 py-8">Loading...</td></tr>
+            </tbody>
+          </table>
         </div>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Max kWh per proof</label>
-          <div class="flex gap-2">
-            <input id="registry-max-kwh" type="number" min="1" placeholder="e.g. 500000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
-            <button id="btn-registry-set-max-kwh" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Manual node status action</label>
-          <div class="flex gap-2">
-            <input id="registry-manual-node-id" type="number" min="1" placeholder="Node ID" class="w-24 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
-            <button id="btn-registry-suspend" class="flex-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-semibold">Suspend</button>
-            <button id="btn-registry-reinstate" class="flex-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold">Reinstate</button>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between glass rounded-xl p-3">
-          <span class="text-xs text-slate-400">Registrations paused</span>
-          <div class="flex gap-2">
-            <button id="btn-registry-pause" class="text-xs px-3 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold">Pause</button>
-            <button id="btn-registry-unpause" class="text-xs px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold">Unpause</button>
-          </div>
-        </div>
-
-        <p id="registry-admin-status" class="text-xs mono text-slate-500 break-all"></p>
       </div>
-    </div>
+    </section>
 
-    <!-- ---------------- PRESALE CONTROLS ---------------- -->
-    <div class="glass glass-border-glow rounded-3xl p-6">
-      <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="rocket" class="w-5 h-5 text-emerald-glow"></i> Presale</h2>
-      <p class="text-xs text-slate-400 mb-5">PowerComputePresale.sol controls</p>
+    <!-- ================= TAB: PROTOCOL CONTROLS ================= -->
+    <section id="tab-controls" class="admin-tab-panel hidden">
+      <div class="grid lg:grid-cols-3 gap-6">
 
-      <div class="space-y-5">
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Add phase (Configuring state only)</label>
-          <div class="grid grid-cols-2 gap-2">
-            <input id="presale-phase-price" type="text" placeholder="Price (wei/token)" class="glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
-            <input id="presale-phase-cap" type="text" placeholder="Cap (wei)" class="glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+        <!-- TOKEN CONTROLS -->
+        <div class="glass glass-border-glow rounded-3xl p-6">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5 text-emerald-glow"></i> $PWR Token</h2>
+          <p class="text-xs text-slate-400 mb-5">PowerComputeToken.sol controls</p>
+          <div class="space-y-5">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Mint tokens (grants/liquidity)</label>
+              <input id="token-mint-to" type="text" placeholder="Recipient 0x..." class="w-full glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow mb-2" />
+              <div class="flex gap-2">
+                <input id="token-mint-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+                <button id="btn-token-mint" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Mint</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Approve minter (e.g. NodeRegistry)</label>
+              <div class="flex gap-2">
+                <input id="token-minter-addr" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-token-set-minter-true" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Allow</button>
+                <button id="btn-token-set-minter-false" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold px-3 whitespace-nowrap">Revoke</button>
+              </div>
+              <button id="btn-token-set-minter-registry" class="mt-2 text-[11px] text-slate-400 hover:text-emerald-glow underline">Use configured NodeRegistry address</button>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Fund staking rewards pool</label>
+              <div class="flex gap-2">
+                <input id="token-fund-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+                <button id="btn-token-fund" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Fund</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Reward rate (wei $PWR / second)</label>
+              <div class="flex gap-2">
+                <input id="token-reward-rate" type="text" placeholder="e.g. 1000000000000000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-token-set-rate" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Unstake cooldown (seconds)</label>
+              <div class="flex gap-2">
+                <input id="token-cooldown" type="number" min="0" placeholder="e.g. 86400" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-token-set-cooldown" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+            <div class="flex items-center justify-between glass rounded-xl p-3">
+              <span class="text-xs text-slate-400">Contract paused</span>
+              <div class="flex gap-2">
+                <button id="btn-token-pause" class="text-xs px-3 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold">Pause</button>
+                <button id="btn-token-unpause" class="text-xs px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold">Unpause</button>
+              </div>
+            </div>
+            <p id="token-admin-status" class="text-xs mono text-slate-500 break-all"></p>
           </div>
-          <button id="btn-presale-add-phase" class="mt-2 w-full rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Add Phase</button>
         </div>
 
-        <button id="btn-presale-start" class="w-full rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-charcoal text-xs font-semibold py-2.5">Start Presale</button>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Deposit $PWR for claims (requires approve first)</label>
-          <div class="flex gap-2">
-            <input id="presale-deposit-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
-            <button id="btn-presale-approve" class="rounded-lg bg-slate-500/15 border border-slate-500/30 text-slate-300 text-xs font-semibold px-3 whitespace-nowrap">Approve</button>
-            <button id="btn-presale-deposit" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Deposit</button>
+        <!-- NODE REGISTRY CONTROLS -->
+        <div class="glass glass-border-glow rounded-3xl p-6">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="server" class="w-5 h-5 text-cyan-glow"></i> Node Registry</h2>
+          <p class="text-xs text-slate-400 mb-5">NodeRegistry.sol controls</p>
+          <div class="space-y-5">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Approve oracle address</label>
+              <div class="flex gap-2">
+                <input id="registry-oracle-addr" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-registry-set-oracle-true" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Allow</button>
+                <button id="btn-registry-set-oracle-false" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold px-3 whitespace-nowrap">Revoke</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Reward per kWh (wei $PWR)</label>
+              <div class="flex gap-2">
+                <input id="registry-reward-per-kwh" type="text" placeholder="e.g. 420000000000000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+                <button id="btn-registry-set-reward" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Max kWh per proof</label>
+              <div class="flex gap-2">
+                <input id="registry-max-kwh" type="number" min="1" placeholder="e.g. 500000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+                <button id="btn-registry-set-max-kwh" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Manual node status action</label>
+              <div class="flex gap-2">
+                <input id="registry-manual-node-id" type="number" min="1" placeholder="Node ID" class="w-24 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-registry-suspend" class="flex-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-semibold">Suspend</button>
+                <button id="btn-registry-reinstate" class="flex-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold">Reinstate</button>
+              </div>
+            </div>
+            <div class="flex items-center justify-between glass rounded-xl p-3">
+              <span class="text-xs text-slate-400">Registrations paused</span>
+              <div class="flex gap-2">
+                <button id="btn-registry-pause" class="text-xs px-3 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold">Pause</button>
+                <button id="btn-registry-unpause" class="text-xs px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold">Unpause</button>
+              </div>
+            </div>
+            <p id="registry-admin-status" class="text-xs mono text-slate-500 break-all"></p>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-2">
-          <button id="btn-presale-finalize" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Finalize</button>
-          <button id="btn-presale-cancel" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold py-2">Cancel</button>
-        </div>
-
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Withdraw raised ETH to</label>
-          <div class="flex gap-2">
-            <input id="presale-withdraw-to" type="text" placeholder="0x... (defaults to your wallet)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
-            <button id="btn-presale-withdraw" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Withdraw</button>
+        <!-- PRESALE CONTROLS -->
+        <div class="glass glass-border-glow rounded-3xl p-6">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="rocket" class="w-5 h-5 text-emerald-glow"></i> Presale</h2>
+          <p class="text-xs text-slate-400 mb-5">PowerComputePresale.sol controls</p>
+          <div class="space-y-5">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Add phase (Configuring state only)</label>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="presale-phase-price" type="text" placeholder="Price (wei/token)" class="glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+                <input id="presale-phase-cap" type="text" placeholder="Cap (wei)" class="glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+              </div>
+              <button id="btn-presale-add-phase" class="mt-2 w-full rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Add Phase</button>
+            </div>
+            <button id="btn-presale-start" class="w-full rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-charcoal text-xs font-semibold py-2.5">Start Presale</button>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Deposit $PWR for claims (requires approve first)</label>
+              <div class="flex gap-2">
+                <input id="presale-deposit-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-presale-approve" class="rounded-lg bg-slate-500/15 border border-slate-500/30 text-slate-300 text-xs font-semibold px-3 whitespace-nowrap">Approve</button>
+                <button id="btn-presale-deposit" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Deposit</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btn-presale-finalize" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Finalize</button>
+              <button id="btn-presale-cancel" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold py-2">Cancel</button>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Withdraw raised ETH to</label>
+              <div class="flex gap-2">
+                <input id="presale-withdraw-to" type="text" placeholder="0x... (defaults to your wallet)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+                <button id="btn-presale-withdraw" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Withdraw</button>
+              </div>
+            </div>
+            <p id="presale-admin-status" class="text-xs mono text-slate-500 break-all"></p>
           </div>
         </div>
-
-        <p id="presale-admin-status" class="text-xs mono text-slate-500 break-all"></p>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <!-- ================= ACTIVITY LOG ================= -->
-  <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="font-bold text-lg flex items-center gap-2">
-        <i data-lucide="activity" class="w-5 h-5 text-emerald-glow"></i> Protocol Activity Log
-      </h2>
-      <button id="btn-refresh-activity" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
-        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
-      </button>
-    </div>
-    <div class="overflow-x-auto scrollbar-thin max-h-[420px] overflow-y-auto">
-      <table class="pc-table">
-        <thead>
-          <tr><th>Event</th><th>Details</th><th>Tx Hash</th></tr>
-        </thead>
-        <tbody id="activity-log-tbody">
-          <tr><td colspan="3" class="text-center text-slate-500 py-8">Configure contract addresses to load recent on-chain events.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+    <!-- ================= TAB: CONTENT (ANNOUNCEMENTS / ARTICLES) ================= -->
+    <section id="tab-content" class="admin-tab-panel hidden">
+      <div class="grid lg:grid-cols-2 gap-6">
 
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="file-plus-2" class="w-5 h-5 text-emerald-glow"></i> Publish New Article</h2>
+          <p class="text-xs text-slate-400 mb-5">Published on-chain via PowerComputeAnnouncements.sol — appears instantly on the public homepage News section.</p>
+
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Title</label>
+              <input id="post-title" type="text" placeholder="e.g. Testnet Phase 2 Now Live" class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10" />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-slate-400 block mb-1.5">Tag</label>
+                <input id="post-tag" type="text" placeholder="Announcement" class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10" />
+              </div>
+              <div>
+                <label class="text-xs text-slate-400 block mb-1.5">External URL (optional)</label>
+                <input id="post-url" type="text" placeholder="https://..." class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10" />
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Body</label>
+              <textarea id="post-body" rows="6" placeholder="Write your announcement or article content here..." class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10 resize-none"></textarea>
+            </div>
+            <button id="btn-publish-post" class="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition flex items-center justify-center gap-2">
+              <i data-lucide="send" class="w-4 h-4"></i> Publish Article
+            </button>
+            <p id="post-tx-status" class="text-xs mono text-slate-500 break-all"></p>
+          </div>
+
+          <div class="mt-6 pt-5 border-t border-white/5">
+            <label class="text-xs text-slate-400 block mb-1.5">Approve additional editor (optional)</label>
+            <div class="flex gap-2">
+              <input id="content-editor-addr" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+              <button id="btn-content-set-editor-true" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Allow</button>
+              <button id="btn-content-set-editor-false" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold px-3 whitespace-nowrap">Revoke</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="newspaper" class="w-5 h-5 text-cyan-glow"></i> Published Articles</h2>
+            <button id="btn-refresh-posts" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
+          <div id="posts-list" class="space-y-3 max-h-[560px] overflow-y-auto scrollbar-thin">
+            <p class="text-center text-slate-500 py-8 text-sm">Loading articles...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB: SETTINGS ================= -->
+    <section id="tab-settings" class="admin-tab-panel hidden">
+      <div class="grid lg:grid-cols-2 gap-6">
+
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-emerald-glow"></i> Ownership</h2>
+          <p class="text-xs text-slate-400 mb-5">Applies to whichever contract you select — ownership can be transferred independently per contract.</p>
+
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Target contract</label>
+              <select id="settings-target-contract" class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none border border-white/10 focus:border-emerald-glow">
+                <option value="token">PowerComputeToken</option>
+                <option value="registry">NodeRegistry</option>
+                <option value="presale">PowerComputePresale</option>
+                <option value="announcements">PowerComputeAnnouncements</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Transfer ownership to</label>
+              <div class="flex gap-2">
+                <input id="settings-new-owner" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-transfer-ownership" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Transfer</button>
+              </div>
+            </div>
+            <div class="glass rounded-xl p-4 border border-red-500/20">
+              <p class="text-xs text-red-400 font-semibold mb-2 flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Danger Zone</p>
+              <p class="text-[11px] text-slate-400 mb-3">Renouncing ownership is permanent and irreversible. No one — including you — will be able to call owner-only functions on this contract ever again.</p>
+              <button id="btn-renounce-ownership" class="w-full rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold py-2">Renounce Ownership</button>
+            </div>
+            <p id="settings-ownership-status" class="text-xs mono text-slate-500 break-all"></p>
+          </div>
+        </div>
+
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="sliders-horizontal" class="w-5 h-5 text-cyan-glow"></i> Protocol Parameters &amp; Recovery</h2>
+          <p class="text-xs text-slate-400 mb-5">Presale funding goal and stuck-token recovery utilities.</p>
+
+          <div class="space-y-5">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Presale funding goal (wei) — Configuring state only</label>
+              <div class="flex gap-2">
+                <input id="settings-funding-goal" type="text" placeholder="e.g. 2000000000000000000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+                <button id="btn-set-funding-goal" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-white/5">
+              <label class="text-xs text-slate-400 block mb-1.5">Recover foreign ERC-20 sent to Token contract</label>
+              <input id="recover-token-addr" type="text" placeholder="Foreign token address 0x..." class="w-full glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow mb-2" />
+              <div class="flex gap-2">
+                <input id="recover-token-amount" type="text" placeholder="Amount (wei, token's own decimals)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <input id="recover-token-to" type="text" placeholder="Send to 0x... (defaults to you)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+              </div>
+              <button id="btn-recover-token" class="mt-2 w-full rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold py-2">Recover Tokens</button>
+            </div>
+
+            <div class="pt-4 border-t border-white/5">
+              <label class="text-xs text-slate-400 block mb-1.5">Recover unclaimed $PWR from Presale (after finalize)</label>
+              <div class="flex gap-2">
+                <input id="recover-presale-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+                <input id="recover-presale-to" type="text" placeholder="Send to 0x... (defaults to you)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+              </div>
+              <button id="btn-recover-presale" class="mt-2 w-full rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Recover from Presale</button>
+            </div>
+
+            <p id="settings-params-status" class="text-xs mono text-slate-500 break-all"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB: ACTIVITY LOG ================= -->
+    <section id="tab-activity" class="admin-tab-panel hidden">
+      <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-bold text-lg flex items-center gap-2">
+            <i data-lucide="activity" class="w-5 h-5 text-emerald-glow"></i> Protocol Activity Log
+          </h2>
+          <button id="btn-refresh-activity" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
+        </div>
+        <div class="overflow-x-auto scrollbar-thin max-h-[520px] overflow-y-auto">
+          <table class="pc-table">
+            <thead>
+              <tr><th>Event</th><th>Details</th><th>Tx Hash</th></tr>
+            </thead>
+            <tbody id="activity-log-tbody">
+              <tr><td colspan="3" class="text-center text-slate-500 py-8">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
 </main>
 
 <footer class="mt-8 border-t border-white/5 px-5 lg:px-8 py-8 text-center">
@@ -391,25 +520,127 @@
 <script>
 /* ==========================================================================
    ADMIN.HTML — PROTOCOL ADMINISTRATION CONSOLE LOGIC
+
+   ACCESS MODEL: this entire page renders NOTHING except the access-gate
+   card until (a) a wallet is connected AND (b) that wallet is verified —
+   by an on-chain owner() read against every configured contract, not just
+   a client-side flag — to be the owner of at least the token contract.
+   Non-owner and disconnected visitors never see stats, controls, or content
+   management tools, even for a flash of a frame.
    ========================================================================== */
 
-function pillForNodeStatusAdmin(statusIndex) {
-  const label = NODE_STATUS_LABELS[statusIndex] || "Unknown";
-  const map = { Pending: "pill-amber", Active: "pill-emerald", Suspended: "pill-red", Retired: "pill-slate" };
-  return `<span class="pill ${map[label] || 'pill-slate'}">${label}</span>`;
+let accessGranted = false;
+
+function showGate(state) {
+  const icon = document.getElementById('gate-icon');
+  const title = document.getElementById('gate-title');
+  const message = document.getElementById('gate-message');
+  const hint = document.getElementById('gate-address-hint');
+
+  if (state === "disconnected") {
+    icon.setAttribute('data-lucide', 'shield-alert');
+    title.textContent = "Restricted Access";
+    message.textContent = "This console is only accessible to the wallet that owns the PowerCompute contracts. Connect your wallet to verify access.";
+    hint.textContent = "";
+  } else if (state === "denied") {
+    icon.setAttribute('data-lucide', 'lock');
+    title.textContent = "Access Denied";
+    message.textContent = "The connected wallet is not the owner of the PowerCompute contracts. If you believe this is an error, connect the correct wallet.";
+    hint.textContent = `Connected as: ${PC.address}`;
+  } else if (state === "not-configured") {
+    icon.setAttribute('data-lucide', 'settings');
+    title.textContent = "Contracts Not Deployed";
+    message.textContent = "No contract addresses are configured yet. Deploy the contracts and update assets/js/config.js, then reconnect.";
+    hint.textContent = "";
+  }
+  pcRenderIcons();
 }
 
-function updateAccessBanners() {
-  document.getElementById('banner-not-connected').classList.toggle('hidden', !!PC.address);
-  const configured = POWERCOMPUTE_CONFIG.tokenConfigured || POWERCOMPUTE_CONFIG.nodeRegistryConfigured || POWERCOMPUTE_CONFIG.presaleConfigured;
-  document.getElementById('banner-not-configured').classList.toggle('hidden', configured);
-  document.getElementById('banner-not-owner').classList.toggle('hidden', !PC.address || PC.isOwner);
+async function verifyAccess() {
+  const gate = document.getElementById('access-gate');
+  const console_ = document.getElementById('admin-console');
+
+  if (!PC.address) {
+    accessGranted = false;
+    gate.classList.remove('hidden');
+    console_.classList.add('hidden');
+    showGate("disconnected");
+    return;
+  }
+
+  if (!POWERCOMPUTE_CONFIG.tokenConfigured) {
+    accessGranted = false;
+    gate.classList.remove('hidden');
+    console_.classList.add('hidden');
+    showGate("not-configured");
+    return;
+  }
+
+  // Re-verify ownership directly on-chain (do not trust any cached client
+  // state) against the token contract, which is always deployed first.
+  try {
+    const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
+    const token = new ethers.Contract(POWERCOMPUTE_CONFIG.TOKEN_ADDRESS, PWR_TOKEN_ABI, readProvider);
+    const tokenOwner = await token.owner();
+    const verifiedOwner = tokenOwner.toLowerCase() === PC.address.toLowerCase();
+
+    PC.isOwner = verifiedOwner; // keep global state in sync with verified truth
+
+    if (!verifiedOwner) {
+      accessGranted = false;
+      gate.classList.remove('hidden');
+      console_.classList.add('hidden');
+      showGate("denied");
+      return;
+    }
+
+    accessGranted = true;
+    gate.classList.add('hidden');
+    console_.classList.remove('hidden');
+
+    const configured = POWERCOMPUTE_CONFIG.tokenConfigured || POWERCOMPUTE_CONFIG.nodeRegistryConfigured || POWERCOMPUTE_CONFIG.presaleConfigured;
+    document.getElementById('banner-not-configured').classList.toggle('hidden', configured);
+
+    loadOverview();
+    loadPendingNodes();
+    loadPendingProofs();
+    loadPosts();
+    loadActivityLog();
+  } catch (err) {
+    console.error("Access verification failed:", err);
+    accessGranted = false;
+    gate.classList.remove('hidden');
+    console_.classList.add('hidden');
+    showGate("denied");
+  }
 }
 
 /* -------------------------------------------------------------------------
-   Protocol overview stats (public reads — visible to everyone)
+   Tabs
+   ------------------------------------------------------------------------- */
+function setupAdminTabs() {
+  const buttons = document.querySelectorAll('.admin-tab-btn');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => {
+        b.classList.remove('bg-gradient-to-r', 'from-emerald-500', 'to-cyan-500', 'text-charcoal');
+        b.classList.add('text-slate-300');
+      });
+      btn.classList.add('bg-gradient-to-r', 'from-emerald-500', 'to-cyan-500', 'text-charcoal');
+      btn.classList.remove('text-slate-300');
+
+      document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
+    });
+  });
+  if (buttons[0]) buttons[0].click();
+}
+
+/* -------------------------------------------------------------------------
+   Overview stats
    ------------------------------------------------------------------------- */
 async function loadOverview() {
+  if (!accessGranted) return;
   const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
 
   if (POWERCOMPUTE_CONFIG.tokenConfigured) {
@@ -448,6 +679,7 @@ async function loadOverview() {
    Pending node verification queue
    ------------------------------------------------------------------------- */
 async function loadPendingNodes() {
+  if (!accessGranted) return;
   const tbody = document.getElementById('pending-nodes-tbody');
   if (!PC.nodeRegistryContract) {
     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">NodeRegistry not configured.</td></tr>`;
@@ -499,6 +731,7 @@ async function loadPendingNodes() {
    Pending energy proof review queue
    ------------------------------------------------------------------------- */
 async function loadPendingProofs() {
+  if (!accessGranted) return;
   const tbody = document.getElementById('pending-proofs-tbody');
   if (!PC.nodeRegistryContract) {
     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">NodeRegistry not configured.</td></tr>`;
@@ -784,12 +1017,243 @@ function wirePresaleControls() {
 }
 
 /* -------------------------------------------------------------------------
-   Activity log — recent on-chain events across all 3 contracts
+   Content (Announcements) admin actions
+   ------------------------------------------------------------------------- */
+function postStatus(msg) { document.getElementById('post-tx-status').textContent = msg; }
+
+async function loadPosts() {
+  if (!accessGranted) return;
+  const list = document.getElementById('posts-list');
+  if (!PC.announcementsContract) {
+    list.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">PowerComputeAnnouncements not configured yet — deploy it and add its address to assets/js/config.js.</p>`;
+    return;
+  }
+  list.innerHTML = `<div class="skeleton h-16 w-full mb-2"></div><div class="skeleton h-16 w-full"></div>`;
+
+  try {
+    const posts = await PC.announcementsContract.getRecentPosts(50);
+    if (posts.length === 0) {
+      list.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">No articles published yet. Use the form to publish your first one.</p>`;
+      return;
+    }
+
+    list.innerHTML = posts.map(p => `
+      <div class="glass rounded-xl p-4 ${p.archived ? 'opacity-50' : ''}">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <p class="font-semibold text-sm">${p.title}</p>
+          ${p.archived ? '<span class="pill pill-slate shrink-0">Archived</span>' : '<span class="pill pill-emerald shrink-0">Live</span>'}
+        </div>
+        <p class="text-xs text-slate-400 mb-2 line-clamp-2">${p.body}</p>
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] mono text-slate-500">#${p.id.toString()} · ${p.tag || 'Post'} · ${pcFmtDate(p.publishedAt)}</span>
+          <div class="flex gap-2">
+            ${p.archived
+              ? `<button class="unarchive-post-btn text-[11px] px-2 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold" data-post-id="${p.id.toString()}">Unarchive</button>`
+              : `<button class="archive-post-btn text-[11px] px-2 py-1 rounded-md bg-red-500/15 border border-red-500/30 text-red-400 font-semibold" data-post-id="${p.id.toString()}">Archive</button>`
+            }
+          </div>
+        </div>
+      </div>`).join("");
+
+    document.querySelectorAll('.archive-post-btn').forEach(btn => btn.addEventListener('click', () => handleArchivePost(btn.dataset.postId, true)));
+    document.querySelectorAll('.unarchive-post-btn').forEach(btn => btn.addEventListener('click', () => handleArchivePost(btn.dataset.postId, false)));
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = `<p class="text-center text-red-400 py-8 text-sm">Failed to load articles: ${err.message || err}</p>`;
+  }
+}
+
+async function handlePublishPost() {
+  if (!pcRequire(PC.announcementsContract, "PowerComputeAnnouncements")) return;
+  const title = document.getElementById('post-title').value.trim();
+  const body = document.getElementById('post-body').value.trim();
+  const tag = document.getElementById('post-tag').value.trim() || "Announcement";
+  const url = document.getElementById('post-url').value.trim();
+
+  if (!title) { pcToast("Enter a title for the article.", "error"); return; }
+
+  try {
+    postStatus("Publishing article...");
+    const tx = await PC.announcementsContract.publish(title, body, tag, url);
+    postStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    postStatus(`Published: ${tx.hash}`);
+    pcToast("Article published! It's now live on the homepage.", "success");
+    document.getElementById('post-title').value = "";
+    document.getElementById('post-body').value = "";
+    document.getElementById('post-tag').value = "";
+    document.getElementById('post-url').value = "";
+    loadPosts();
+  } catch (err) {
+    console.error(err);
+    postStatus(err.reason || err.message || "Publish failed.");
+    pcToast("Failed to publish article.", "error");
+  }
+}
+
+async function handleArchivePost(postId, archive) {
+  if (!pcRequire(PC.announcementsContract, "PowerComputeAnnouncements")) return;
+  try {
+    const tx = archive
+      ? await PC.announcementsContract.archivePost(postId)
+      : await PC.announcementsContract.unarchivePost(postId);
+    pcToast(archive ? `Archiving post #${postId}...` : `Restoring post #${postId}...`);
+    await tx.wait();
+    pcToast(archive ? "Post archived." : "Post restored.", "success");
+    loadPosts();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Action failed.", "error");
+  }
+}
+
+function wireContentControls() {
+  document.getElementById('btn-publish-post').addEventListener('click', handlePublishPost);
+  document.getElementById('btn-refresh-posts').addEventListener('click', loadPosts);
+
+  document.getElementById('btn-content-set-editor-true').addEventListener('click', () => {
+    if (!pcRequire(PC.announcementsContract, "PowerComputeAnnouncements")) return;
+    const addr = document.getElementById('content-editor-addr').value.trim();
+    if (!ethers.utils.isAddress(addr)) { pcToast("Enter a valid address.", "error"); return; }
+    PC.announcementsContract.setEditor(addr, true).then(tx => tx.wait()).then(() => pcToast("Editor approved.", "success")).catch(err => pcToast(err.reason || err.message || "Failed.", "error"));
+  });
+  document.getElementById('btn-content-set-editor-false').addEventListener('click', () => {
+    if (!pcRequire(PC.announcementsContract, "PowerComputeAnnouncements")) return;
+    const addr = document.getElementById('content-editor-addr').value.trim();
+    if (!ethers.utils.isAddress(addr)) { pcToast("Enter a valid address.", "error"); return; }
+    PC.announcementsContract.setEditor(addr, false).then(tx => tx.wait()).then(() => pcToast("Editor revoked.", "success")).catch(err => pcToast(err.reason || err.message || "Failed.", "error"));
+  });
+}
+
+/* -------------------------------------------------------------------------
+   Settings tab: ownership transfer / renounce / funding goal / recovery
+   ------------------------------------------------------------------------- */
+function getSettingsTargetContract() {
+  const key = document.getElementById('settings-target-contract').value;
+  if (key === "token") return { contract: PC.tokenContract, label: "PowerComputeToken" };
+  if (key === "registry") return { contract: PC.nodeRegistryContract, label: "NodeRegistry" };
+  if (key === "presale") return { contract: PC.presaleContract, label: "PowerComputePresale" };
+  if (key === "announcements") return { contract: PC.announcementsContract, label: "PowerComputeAnnouncements" };
+  return { contract: null, label: "Unknown" };
+}
+
+function settingsOwnershipStatus(msg) { document.getElementById('settings-ownership-status').textContent = msg; }
+function settingsParamsStatus(msg) { document.getElementById('settings-params-status').textContent = msg; }
+
+function wireSettingsControls() {
+  document.getElementById('btn-transfer-ownership').addEventListener('click', async () => {
+    const { contract, label } = getSettingsTargetContract();
+    if (!pcRequire(contract, label)) return;
+    const newOwner = document.getElementById('settings-new-owner').value.trim();
+    if (!ethers.utils.isAddress(newOwner)) { pcToast("Enter a valid new owner address.", "error"); return; }
+    if (!confirm(`Transfer ownership of ${label} to ${newOwner}? You will immediately lose all owner-only access to this contract.`)) return;
+
+    try {
+      settingsOwnershipStatus(`Transferring ownership of ${label}...`);
+      const tx = await contract.transferOwnership(newOwner);
+      settingsOwnershipStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      settingsOwnershipStatus(`Ownership transferred: ${tx.hash}`);
+      pcToast(`${label} ownership transferred. Reconnect with the new owner wallet to continue managing it.`, "success");
+    } catch (err) {
+      console.error(err);
+      settingsOwnershipStatus(err.reason || err.message || "Transfer failed.");
+      pcToast("Ownership transfer failed.", "error");
+    }
+  });
+
+  document.getElementById('btn-renounce-ownership').addEventListener('click', async () => {
+    const { contract, label } = getSettingsTargetContract();
+    if (!pcRequire(contract, label)) return;
+    const confirmation = prompt(`Type RENOUNCE to permanently give up ownership of ${label}. This cannot be undone.`);
+    if (confirmation !== "RENOUNCE") { pcToast("Renounce cancelled — confirmation text did not match.", "error"); return; }
+
+    try {
+      settingsOwnershipStatus(`Renouncing ownership of ${label}...`);
+      const tx = await contract.renounceOwnership();
+      settingsOwnershipStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      settingsOwnershipStatus(`Ownership renounced: ${tx.hash}`);
+      pcToast(`${label} ownership renounced permanently.`, "success");
+    } catch (err) {
+      console.error(err);
+      settingsOwnershipStatus(err.reason || err.message || "Renounce failed.");
+      pcToast("Renounce failed.", "error");
+    }
+  });
+
+  document.getElementById('btn-set-funding-goal').addEventListener('click', async () => {
+    if (!pcRequire(PC.presaleContract, "PowerComputePresale")) return;
+    const goal = document.getElementById('settings-funding-goal').value.trim();
+    if (!goal) { pcToast("Enter a funding goal in wei.", "error"); return; }
+    try {
+      settingsParamsStatus("Setting funding goal...");
+      const tx = await PC.presaleContract.setFundingGoal(goal);
+      settingsParamsStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      settingsParamsStatus(`Funding goal updated: ${tx.hash}`);
+      pcToast("Funding goal updated.", "success");
+    } catch (err) {
+      console.error(err);
+      settingsParamsStatus(err.reason || err.message || "Failed.");
+      pcToast("Failed to set funding goal.", "error");
+    }
+  });
+
+  document.getElementById('btn-recover-token').addEventListener('click', async () => {
+    if (!pcRequire(PC.tokenContract, "PowerComputeToken")) return;
+    const foreignAddr = document.getElementById('recover-token-addr').value.trim();
+    const amount = document.getElementById('recover-token-amount').value.trim();
+    const to = document.getElementById('recover-token-to').value.trim() || PC.address;
+    if (!ethers.utils.isAddress(foreignAddr) || !amount || !ethers.utils.isAddress(to)) {
+      pcToast("Enter a valid foreign token address, amount, and recipient.", "error");
+      return;
+    }
+    try {
+      settingsParamsStatus("Recovering foreign tokens...");
+      const tx = await PC.tokenContract.recoverForeignToken(foreignAddr, amount, to);
+      settingsParamsStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      settingsParamsStatus(`Recovered: ${tx.hash}`);
+      pcToast("Foreign tokens recovered.", "success");
+    } catch (err) {
+      console.error(err);
+      settingsParamsStatus(err.reason || err.message || "Failed.");
+      pcToast("Recovery failed.", "error");
+    }
+  });
+
+  document.getElementById('btn-recover-presale').addEventListener('click', async () => {
+    if (!pcRequire(PC.presaleContract, "PowerComputePresale")) return;
+    const amount = document.getElementById('recover-presale-amount').value;
+    const to = document.getElementById('recover-presale-to').value.trim() || PC.address;
+    if (!amount || parseFloat(amount) <= 0 || !ethers.utils.isAddress(to)) {
+      pcToast("Enter a valid amount and recipient.", "error");
+      return;
+    }
+    try {
+      settingsParamsStatus("Recovering unclaimed $PWR from presale...");
+      const tx = await PC.presaleContract.recoverUnclaimedTokens(to, ethers.utils.parseUnits(amount, 18));
+      settingsParamsStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      settingsParamsStatus(`Recovered: ${tx.hash}`);
+      pcToast("Unclaimed $PWR recovered from presale.", "success");
+    } catch (err) {
+      console.error(err);
+      settingsParamsStatus(err.reason || err.message || "Failed.");
+      pcToast("Recovery failed.", "error");
+    }
+  });
+}
+
+/* -------------------------------------------------------------------------
+   Activity log — recent on-chain events across all 4 contracts
    ------------------------------------------------------------------------- */
 async function loadActivityLog() {
+  if (!accessGranted) return;
   const tbody = document.getElementById('activity-log-tbody');
 
-  if (!POWERCOMPUTE_CONFIG.tokenConfigured && !POWERCOMPUTE_CONFIG.nodeRegistryConfigured && !POWERCOMPUTE_CONFIG.presaleConfigured) {
+  if (!POWERCOMPUTE_CONFIG.tokenConfigured && !POWERCOMPUTE_CONFIG.nodeRegistryConfigured && !POWERCOMPUTE_CONFIG.presaleConfigured && !POWERCOMPUTE_CONFIG.announcementsConfigured) {
     tbody.innerHTML = `<tr><td colspan="3" class="text-center text-slate-500 py-8">Configure contract addresses to load recent on-chain events.</td></tr>`;
     return;
   }
@@ -799,7 +1263,7 @@ async function loadActivityLog() {
   try {
     const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
     const latestBlock = await readProvider.getBlockNumber();
-    const fromBlock = Math.max(0, latestBlock - 50000); // bounded lookback window for testnet RPC limits
+    const fromBlock = Math.max(0, latestBlock - 50000);
 
     let events = [];
 
@@ -841,6 +1305,14 @@ async function loadActivityLog() {
       events.push(...claimed2.map(e => ({ name: "Claimed", details: `${pcShorten(e.args.contributor)} claimed ${pcFmtToken(e.args.tokenAmount, 18)} PWR`, hash: e.transactionHash, block: e.blockNumber })));
     }
 
+    if (POWERCOMPUTE_CONFIG.announcementsConfigured) {
+      const announcements = new ethers.Contract(POWERCOMPUTE_CONFIG.ANNOUNCEMENTS_ADDRESS, ANNOUNCEMENTS_ABI, readProvider);
+      const [published] = await Promise.all([
+        announcements.queryFilter(announcements.filters.PostPublished(), fromBlock, latestBlock).catch(() => [])
+      ]);
+      events.push(...published.map(e => ({ name: "PostPublished", details: `"${e.args.title}" (${e.args.tag}) by ${pcShorten(e.args.author)}`, hash: e.transactionHash, block: e.blockNumber })));
+    }
+
     events.sort((a, b) => b.block - a.block);
     events = events.slice(0, 40);
 
@@ -865,24 +1337,21 @@ async function loadActivityLog() {
    Bootstrap
    ------------------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-  updateAccessBanners();
-  loadOverview();
-  loadActivityLog();
+  showGate("disconnected");
+  setupAdminTabs();
 
   wireTokenControls();
   wireRegistryControls();
   wirePresaleControls();
+  wireContentControls();
+  wireSettingsControls();
 
+  document.getElementById('btn-refresh-overview').addEventListener('click', loadOverview);
   document.getElementById('btn-refresh-pending-nodes').addEventListener('click', loadPendingNodes);
   document.getElementById('btn-refresh-pending-proofs').addEventListener('click', loadPendingProofs);
   document.getElementById('btn-refresh-activity').addEventListener('click', loadActivityLog);
 
-  pcOnConnect(() => {
-    updateAccessBanners();
-    loadPendingNodes();
-    loadPendingProofs();
-    loadOverview();
-  });
+  pcOnConnect(verifyAccess);
 
   pcRenderIcons();
 });
