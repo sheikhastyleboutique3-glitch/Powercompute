@@ -324,6 +324,78 @@ function pcRequire(contractHandle, contractLabel) {
 }
 
 /* -------------------------------------------------------------------------
+   Wallet picker — single "Connect Wallet" button opens this sheet so the
+   user picks HOW to connect (browser extension vs. WalletConnect QR),
+   instead of cluttering every page with two separate buttons. Built once
+   and appended to <body> on first use, then just shown/hidden afterward.
+   ------------------------------------------------------------------------- */
+function pcBuildWalletPicker() {
+  if (document.getElementById('pc-wallet-picker')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pc-wallet-picker';
+  overlay.className = 'fixed inset-0 z-[110] hidden items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-4 sm:pb-0';
+  overlay.innerHTML = `
+    <div class="glass glass-border-glow rounded-2xl w-full sm:w-96 p-5 max-h-[80vh] overflow-y-auto scrollbar-thin">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i data-lucide="wallet" class="w-4 h-4 text-emerald-glow"></i> Connect a Wallet
+        </h3>
+        <button id="pc-wallet-picker-close" class="text-slate-500 hover:text-slate-300">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="space-y-2">
+        <button id="pc-picker-injected" class="w-full flex items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-3.5 font-semibold text-charcoal hover:brightness-110 transition text-left">
+          <i data-lucide="chrome" class="w-5 h-5 shrink-0"></i>
+          <span>
+            <span class="block text-sm">Browser Extension</span>
+            <span class="block text-xs opacity-80">MetaMask, Coinbase Wallet, Rabby, etc.</span>
+          </span>
+        </button>
+        <button id="pc-picker-walletconnect" class="w-full flex items-center gap-3 rounded-xl glass glass-border-glow px-4 py-3.5 font-semibold text-slate-100 hover:border-cyan-glow transition text-left">
+          <i data-lucide="qr-code" class="w-5 h-5 shrink-0 text-cyan-glow"></i>
+          <span>
+            <span class="block text-sm">WalletConnect</span>
+            <span class="block text-xs text-slate-400">Scan a QR code with any mobile wallet app</span>
+          </span>
+        </button>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-4 text-center">On mobile without a wallet browser extension, choose WalletConnect.</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const hide = () => overlay.classList.add('hidden');
+
+  document.getElementById('pc-wallet-picker-close').addEventListener('click', hide);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) hide(); });
+
+  document.getElementById('pc-picker-injected').addEventListener('click', async () => {
+    hide();
+    await pcConnectWallet();
+  });
+  document.getElementById('pc-picker-walletconnect').addEventListener('click', async () => {
+    hide();
+    await pcConnectWalletConnect();
+  });
+
+  pcRenderIcons();
+}
+
+function pcOpenWalletPicker() {
+  // If already connected, clicking "Connect Wallet" again is a no-op —
+  // there's nothing to pick between once a session is active.
+  if (PC.address) return;
+
+  pcBuildWalletPicker();
+  const overlay = document.getElementById('pc-wallet-picker');
+  overlay.classList.remove('hidden');
+  overlay.classList.add('flex');
+  pcRenderIcons();
+}
+
+/* -------------------------------------------------------------------------
    Shared page chrome: mobile menu, icon re-render helper
    ------------------------------------------------------------------------- */
 function pcSetupMobileMenu() {
@@ -342,8 +414,13 @@ document.addEventListener('DOMContentLoaded', () => {
   pcRenderIcons();
   pcSetupMobileMenu();
 
+  // A single data-connect-wallet button now opens the picker sheet, which
+  // in turn calls pcConnectWallet() or pcConnectWalletConnect() based on
+  // the user's choice. (data-connect-walletconnect is still supported for
+  // any custom button that wants to skip the picker and go straight to
+  // WalletConnect, but no page ships one anymore by default.)
   document.querySelectorAll('[data-connect-wallet]').forEach(btn => {
-    btn.addEventListener('click', pcConnectWallet);
+    btn.addEventListener('click', pcOpenWalletPicker);
   });
   document.querySelectorAll('[data-connect-walletconnect]').forEach(btn => {
     btn.addEventListener('click', pcConnectWalletConnect);

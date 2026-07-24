@@ -56,16 +56,10 @@
     <span class="hidden sm:flex items-center gap-2 text-xs mono text-slate-500">
       <i data-lucide="lock" class="w-3.5 h-3.5"></i> Restricted Console
     </span>
-    <div class="flex items-center gap-2">
-      <button data-connect-wallet class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
-        <i data-lucide="wallet" class="w-4 h-4"></i>
-        <span data-wallet-label>Connect Wallet</span>
-      </button>
-      <button data-connect-walletconnect class="hidden sm:flex items-center gap-2 rounded-lg glass glass-border-glow px-4 py-2 text-sm font-semibold text-slate-200 hover:border-cyan-glow transition" title="Connect a mobile wallet via WalletConnect (scan QR code)">
-        <i data-lucide="qr-code" class="w-4 h-4"></i>
-        <span>WalletConnect</span>
-      </button>
-    </div>
+    <button data-connect-wallet class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+      <i data-lucide="wallet" class="w-4 h-4"></i>
+      <span data-wallet-label>Connect Wallet</span>
+    </button>
   </div>
 </header>
 
@@ -85,14 +79,9 @@
       <p class="text-sm text-slate-400 mb-6" id="gate-message">
         This console is only accessible to the wallet that owns the PowerCompute contracts. Connect your wallet to verify access.
       </p>
-      <div class="flex flex-col gap-2">
-        <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
-          <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet (Browser Extension)
-        </button>
-        <button data-connect-walletconnect class="w-full flex items-center justify-center gap-2 rounded-xl glass glass-border-glow px-6 py-3 font-semibold text-slate-200 hover:border-cyan-glow transition">
-          <i data-lucide="qr-code" class="w-4 h-4"></i> WalletConnect (Mobile Wallet)
-        </button>
-      </div>
+      <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+        <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
+      </button>
       <p class="text-xs mono text-slate-600 mt-5" id="gate-address-hint"></p>
     </div>
   </div>
