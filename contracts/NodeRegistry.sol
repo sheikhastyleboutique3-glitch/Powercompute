@@ -62,6 +62,18 @@ contract NodeRegistry is Ownable, Pausable, ReentrancyGuard {
         uint256 rewardMinted;
         uint256 submittedAt;
         uint256 resolvedAt;
+        // Audit fix (finding #5): the reward rate is now locked in at
+        // SUBMISSION time and stored per-proof, rather than being read
+        // live from the mutable `rewardPerKwh` state variable at approval
+        // time. Previously, an oracle/owner could sit on a submitted proof
+        // and wait for `rewardPerKwh` to change before approving it,
+        // paying out at a rate the operator never agreed to when they
+        // submitted their energy data — either shortchanging honest
+        // operators or, in the other direction, letting a colluding
+        // oracle wait for a rate INCREASE to overpay a specific proof.
+        // Locking the rate at submission removes that timing lever
+        // entirely: what you submit at is what you get paid at.
+        uint256 rewardPerKwhAtSubmission;
     }
 
     // ------------------------------------------------------------------
@@ -87,6 +99,14 @@ contract NodeRegistry is Ownable, Pausable, ReentrancyGuard {
 
     /// @notice Maximum kWh a single proof may claim, to bound oracle-approved mint size.
     uint256 public maxKwhPerProof = 500_000;
+
+    /// @notice Max array length accepted by batchVerifyNodes/batchApproveEnergyProofs
+    ///         (audit fix, finding #10). Purely a self-protection bound —
+    ///         an oversized array would only cost the CALLER excess gas or
+    ///         hit the block gas limit and revert with no state change —
+    ///         but capping it up front gives a clean, cheap error instead
+    ///         of a confusing out-of-gas failure near the block limit.
+    uint256 public constant MAX_BATCH_SIZE = 100;
 
     // ------------------------------------------------------------------
     // Events
@@ -261,7 +281,8 @@ contract NodeRegistry is Ownable, Pausable, ReentrancyGuard {
             rejected: false,
             rewardMinted: 0,
             submittedAt: block.timestamp,
-            resolvedAt: 0
+            resolvedAt: 0,
+            rewardPerKwhAtSubmission: rewardPerKwh
         });
 
         emit EnergyProofSubmitted(proofId, nodeId, msg.sender, kWhRouted, periodStart, periodEnd);
@@ -279,7 +300,9 @@ contract NodeRegistry is Ownable, Pausable, ReentrancyGuard {
         Node storage node = nodes[proof.nodeId];
         require(node.status == NodeStatus.Active, "NodeRegistry: node not active");
 
-        uint256 reward = proof.kWhRouted * rewardPerKwh;
+        // Uses the rate locked in at submission time (audit fix #5), not
+        // the current live `rewardPerKwh`.
+        uint256 reward = proof.kWhRouted * proof.rewardPerKwhAtSubmission;
 
         proof.approved = true;
         proof.rewardMinted = reward;
@@ -362,6 +385,7 @@ contract NodeRegistry is Ownable, Pausable, ReentrancyGuard {
      * @return verifiedCount Number of nodes actually verified by this call.
      */
     function batchVerifyNodes(uint256[] calldata nodeIds) external onlyOracleOrOwner returns (uint256 verifiedCount) {
+        require(nodeIds.length <= MAX_BATCH_SIZE, "NodeRegistry: batch too large");
         for (uint256 i = 0; i < nodeIds.length; i++) {
             Node storage node = nodes[nodeIds[i]];
             if (node.operator != address(0) && node.status == NodeStatus.Pending) {
@@ -382,6 +406,7 @@ contract NodeRegistry is Ownable, Pausable, ReentrancyGuard {
      * @return approvedCount Number of proofs actually approved by this call.
      */
     function batchApproveEnergyProofs(uint256[] calldata proofIds) external onlyOracleOrOwner nonReentrant returns (uint256 approvedCount) {
+        require(proofIds.length <= MAX_BATCH_SIZE, "NodeRegistry: batch too large");
         for (uint256 i = 0; i < proofIds.length; i++) {
             EnergyProof storage proof = energyProofs[proofIds[i]];
 
@@ -394,7 +419,8 @@ contract NodeRegistry is Ownable, Pausable, ReentrancyGuard {
                 continue;
             }
 
-            uint256 reward = proof.kWhRouted * rewardPerKwh;
+            // Uses the rate locked in at submission time (audit fix #5).
+            uint256 reward = proof.kWhRouted * proof.rewardPerKwhAtSubmission;
 
             proof.approved = true;
             proof.rewardMinted = reward;

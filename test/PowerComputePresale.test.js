@@ -239,4 +239,191 @@ describe("PowerComputePresale", function () {
       expect(balanceAfter).to.equal(balanceBefore + ethers.parseEther("1") - gasCost);
     });
   });
+
+  /**
+   * ==========================================================================
+   * AUDIT FIX REGRESSION TESTS (finding #1, CRITICAL)
+   *
+   * Before the fix, `recoverUnclaimedTokens(to, amount)` had NO bound at
+   * all beyond `state == Finalized` — the owner could call it immediately
+   * after finalize(), before a single contributor had claimed anything,
+   * and withdraw the ENTIRE deposited balance, draining every
+   * contributor's allocation. These tests pin down the fixed behavior:
+   * recovery is now strictly capped to `tokensDepositedForClaims -
+   * totalTokensSold` (the genuine surplus/dust), and that cap is provably
+   * independent of how many contributors have claimed.
+   * ==========================================================================
+   */
+  describe("Audit fix: recoverUnclaimedTokens bound (finding #1, CRITICAL)", function () {
+    async function setUpFundedFinalizedPresale(extraSurplus) {
+      const { token, presale, owner, alice } = await deployPresaleFixture();
+      await presale.addPhase(ethers.parseEther("0.0001"), ethers.parseEther("5"));
+      await presale.startPresale();
+
+      await presale.connect(alice).contribute({ value: ethers.parseEther("1") }); // 10,000 tokens sold
+      const sold = await presale.totalTokensSold();
+
+      const deposit = sold + extraSurplus;
+      await fundPresaleForClaims(token, presale, owner, deposit);
+      await presale.finalize();
+
+      return { token, presale, owner, alice, sold, deposit };
+    }
+
+    it("reverts recovering ANYTHING when deposited exactly matches sold (no surplus)", async function () {
+      const { presale, owner } = await setUpFundedFinalizedPresale(0n);
+      await expect(
+        presale.recoverUnclaimedTokens(owner.address, 1n)
+      ).to.be.revertedWith("Presale: amount exceeds recoverable surplus");
+    });
+
+    it("allows recovering exactly the surplus, even before any contributor has claimed", async function () {
+      const surplus = ethers.parseUnits("500", 18);
+      const { token, presale, owner } = await setUpFundedFinalizedPresale(surplus);
+
+      // This is the critical regression check: recovering the surplus
+      // must succeed WITHOUT requiring any prior claim() call.
+      await expect(presale.recoverUnclaimedTokens(owner.address, surplus)).to.not.be.reverted;
+      expect(await token.balanceOf(owner.address)).to.be.greaterThanOrEqual(surplus);
+    });
+
+    it("reverts recovering even 1 wei more than the surplus (cannot touch contributor-owed tokens)", async function () {
+      const surplus = ethers.parseUnits("500", 18);
+      const { presale, owner } = await setUpFundedFinalizedPresale(surplus);
+
+      await expect(
+        presale.recoverUnclaimedTokens(owner.address, surplus + 1n)
+      ).to.be.revertedWith("Presale: amount exceeds recoverable surplus");
+    });
+
+    it("CRITICAL: cannot drain the full deposited balance immediately after finalize (the original bug)", async function () {
+      const surplus = ethers.parseUnits("500", 18);
+      const { presale, owner, deposit } = await setUpFundedFinalizedPresale(surplus);
+
+      // The original vulnerable version of this function would have let
+      // this succeed, withdrawing every contributor's allocation before
+      // they ever got a chance to claim. It must now revert.
+      await expect(
+        presale.recoverUnclaimedTokens(owner.address, deposit)
+      ).to.be.revertedWith("Presale: amount exceeds recoverable surplus");
+    });
+
+    it("recoverable surplus is unaffected by whether contributors have claimed yet", async function () {
+      const surplus = ethers.parseUnits("500", 18);
+      const { presale, owner, alice } = await setUpFundedFinalizedPresale(surplus);
+
+      // Before claim: can recover exactly `surplus`, no more.
+      await expect(presale.recoverUnclaimedTokens(owner.address, surplus + 1n)).to.be.reverted;
+
+      // Alice claims her full allocation.
+      await presale.connect(alice).claim();
+
+      // After claim: the recoverable bound is still exactly `surplus` —
+      // claiming does not change tokensDepositedForClaims or
+      // totalTokensSold, so the surplus figure is stable.
+      await expect(presale.recoverUnclaimedTokens(owner.address, surplus)).to.not.be.reverted;
+    });
+
+    it("only the owner can call recoverUnclaimedTokens", async function () {
+      const { presale, alice } = await setUpFundedFinalizedPresale(ethers.parseUnits("500", 18));
+      await expect(
+        presale.connect(alice).recoverUnclaimedTokens(alice.address, 1n)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+  });
+
+  /**
+   * ==========================================================================
+   * AUDIT FIX REGRESSION TESTS (finding #8)
+   *
+   * Deposited $PWR previously had no recovery path at all once the
+   * presale was cancelled — every withdrawal function was gated on
+   * `state == Finalized`, which a cancelled presale can never reach.
+   * ==========================================================================
+   */
+  describe("Audit fix: recoverDepositedTokensAfterCancel (finding #8)", function () {
+    it("lets the owner recover ALL deposited tokens after cancellation", async function () {
+      const { token, presale, owner, alice } = await deployPresaleFixture();
+      await presale.addPhase(ethers.parseEther("0.0001"), ethers.parseEther("5"));
+      await presale.startPresale();
+      await presale.connect(alice).contribute({ value: ethers.parseEther("1") });
+
+      const deposit = ethers.parseUnits("10000", 18);
+      await fundPresaleForClaims(token, presale, owner, deposit);
+
+      await presale.cancelPresale();
+
+      await expect(
+        presale.recoverDepositedTokensAfterCancel(owner.address, deposit)
+      ).to.not.be.reverted;
+      expect(await token.balanceOf(owner.address)).to.be.greaterThanOrEqual(deposit);
+    });
+
+    it("reverts if the presale is not cancelled", async function () {
+      const { token, presale, owner } = await deployPresaleFixture();
+      await presale.addPhase(ethers.parseEther("0.0001"), ethers.parseEther("5"));
+      await presale.startPresale();
+
+      const deposit = ethers.parseUnits("1000", 18);
+      await fundPresaleForClaims(token, presale, owner, deposit);
+
+      await expect(
+        presale.recoverDepositedTokensAfterCancel(owner.address, deposit)
+      ).to.be.revertedWith("Presale: not cancelled");
+    });
+
+    it("reverts recovering more than was deposited", async function () {
+      const { token, presale, owner } = await deployPresaleFixture();
+      await presale.addPhase(ethers.parseEther("0.0001"), ethers.parseEther("5"));
+      await presale.startPresale();
+
+      const deposit = ethers.parseUnits("1000", 18);
+      await fundPresaleForClaims(token, presale, owner, deposit);
+      await presale.cancelPresale();
+
+      await expect(
+        presale.recoverDepositedTokensAfterCancel(owner.address, deposit + 1n)
+      ).to.be.revertedWith("Presale: amount exceeds deposited balance");
+    });
+  });
+
+  /**
+   * ==========================================================================
+   * AUDIT FIX REGRESSION TESTS (finding #6 mitigation)
+   * ==========================================================================
+   */
+  describe("Audit fix: referral blocking circuit breaker (finding #6)", function () {
+    it("withholds the referrer's bonus once blocked, but still pays the referee's bonus", async function () {
+      const { presale, alice, bob } = await deployPresaleFixture();
+      await presale.addPhase(ethers.parseEther("0.0001"), ethers.parseEther("5"));
+      await presale.startPresale();
+
+      await presale.setReferralBlocked(bob.address, true);
+
+      await presale.connect(alice).contributeWithReferral(bob.address, { value: ethers.parseEther("1") });
+
+      const baseTokens = ethers.parseUnits("10000", 18);
+      const refereeBonus = (baseTokens * 300n) / 10_000n;
+
+      // Referee still gets their 3% bonus...
+      expect(await presale.tokenAllocations(alice.address)).to.equal(baseTokens + refereeBonus);
+      // ...but the blocked referrer gets nothing.
+      expect(await presale.tokenAllocations(bob.address)).to.equal(0n);
+      expect(await presale.referralBonusEarned(bob.address)).to.equal(0n);
+    });
+
+    it("resumes paying the referrer once unblocked", async function () {
+      const { presale, alice, bob } = await deployPresaleFixture();
+      await presale.addPhase(ethers.parseEther("0.0001"), ethers.parseEther("10"));
+      await presale.startPresale();
+
+      await presale.setReferralBlocked(bob.address, true);
+      await presale.connect(alice).contributeWithReferral(bob.address, { value: ethers.parseEther("1") });
+      expect(await presale.referralBonusEarned(bob.address)).to.equal(0n);
+
+      await presale.setReferralBlocked(bob.address, false);
+      await presale.connect(alice).contribute({ value: ethers.parseEther("1") });
+      expect(await presale.referralBonusEarned(bob.address)).to.be.greaterThan(0n);
+    });
+  });
 });

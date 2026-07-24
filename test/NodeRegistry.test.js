@@ -193,5 +193,97 @@ describe("NodeRegistry", function () {
         "NodeRegistry: caller is not an oracle or owner"
       );
     });
+
+    it("reverts a batch larger than MAX_BATCH_SIZE (audit fix, finding #10)", async function () {
+      const { registry } = await deployRegistryFixture();
+      const maxSize = await registry.MAX_BATCH_SIZE();
+      const oversizedBatch = Array.from({ length: Number(maxSize) + 1 }, (_, i) => i + 1);
+
+      await expect(registry.batchVerifyNodes(oversizedBatch)).to.be.revertedWith(
+        "NodeRegistry: batch too large"
+      );
+      await expect(registry.batchApproveEnergyProofs(oversizedBatch)).to.be.revertedWith(
+        "NodeRegistry: batch too large"
+      );
+    });
+  });
+
+  /**
+   * ==========================================================================
+   * AUDIT FIX REGRESSION TEST (finding #5)
+   *
+   * Before the fix, `approveEnergyProof`/`batchApproveEnergyProofs` read
+   * the LIVE `rewardPerKwh` at approval time, not the rate that was in
+   * effect when the operator actually submitted their energy data. This
+   * let an oracle/owner sit on a proof, change `rewardPerKwh`, and only
+   * then approve it — paying out at a rate the operator never agreed to.
+   * The fix stores `rewardPerKwhAtSubmission` on the proof itself at
+   * `submitEnergyProof()` time and uses THAT for the payout regardless of
+   * how many times the live rate changes afterward.
+   * ==========================================================================
+   */
+  describe("Audit fix: reward rate locked at submission time (finding #5)", function () {
+    it("pays out at the rate in effect at SUBMISSION, not at approval, if the rate changes in between", async function () {
+      const { token, registry, operatorA } = await deployRegistryFixture();
+      const nodeId = await registerAndVerifyNode(registry, operatorA);
+
+      const rateAtSubmission = await registry.rewardPerKwh();
+      const now = Math.floor(Date.now() / 1000);
+      await registry.connect(operatorA).submitEnergyProof(nodeId, 1000, now - 3600, now - 60);
+
+      // Oracle/owner changes the rate AFTER submission but BEFORE approval.
+      const newRate = rateAtSubmission * 10n;
+      await registry.setRewardPerKwh(newRate);
+      expect(await registry.rewardPerKwh()).to.equal(newRate);
+
+      await registry.approveEnergyProof(1);
+
+      // Regression check: payout must use the OLD (submission-time) rate,
+      // not the new live rate that was set after submission.
+      const expectedReward = 1000n * rateAtSubmission;
+      const wrongRewardIfLiveRateUsed = 1000n * newRate;
+
+      expect(await token.balanceOf(operatorA.address)).to.equal(expectedReward);
+      expect(await token.balanceOf(operatorA.address)).to.not.equal(wrongRewardIfLiveRateUsed);
+
+      const proof = await registry.getEnergyProof(1);
+      expect(proof.rewardPerKwhAtSubmission).to.equal(rateAtSubmission);
+      expect(proof.rewardMinted).to.equal(expectedReward);
+    });
+
+    it("records the submission-time rate on the proof immediately at submitEnergyProof, before any approval", async function () {
+      const { registry, operatorA } = await deployRegistryFixture();
+      const nodeId = await registerAndVerifyNode(registry, operatorA);
+
+      const rateAtSubmission = await registry.rewardPerKwh();
+      const now = Math.floor(Date.now() / 1000);
+      await registry.connect(operatorA).submitEnergyProof(nodeId, 500, now - 3600, now - 60);
+
+      const proof = await registry.getEnergyProof(1);
+      expect(proof.rewardPerKwhAtSubmission).to.equal(rateAtSubmission);
+      expect(proof.approved).to.equal(false); // not yet approved, but rate is already locked in
+    });
+
+    it("batchApproveEnergyProofs also honors each proof's own locked-in rate, not a single live rate", async function () {
+      const { token, registry, operatorA, operatorB } = await deployRegistryFixture();
+      const nodeIdA = await registerAndVerifyNode(registry, operatorA, "Texas");
+      const nodeIdB = await registerAndVerifyNode(registry, operatorB, "California");
+
+      const now = Math.floor(Date.now() / 1000);
+      const rateForA = await registry.rewardPerKwh();
+      await registry.connect(operatorA).submitEnergyProof(nodeIdA, 1000, now - 3600, now - 60); // proof 1 @ rateForA
+
+      const rateForB = rateForA * 2n;
+      await registry.setRewardPerKwh(rateForB);
+      await registry.connect(operatorB).submitEnergyProof(nodeIdB, 1000, now - 3600, now - 60); // proof 2 @ rateForB
+
+      await registry.batchApproveEnergyProofs([1, 2]);
+
+      // Each operator must be paid at THEIR OWN proof's locked-in rate,
+      // even though both were approved in the same batch transaction
+      // against a single current `rewardPerKwh` value.
+      expect(await token.balanceOf(operatorA.address)).to.equal(1000n * rateForA);
+      expect(await token.balanceOf(operatorB.address)).to.equal(1000n * rateForB);
+    });
   });
 });

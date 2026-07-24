@@ -66,6 +66,91 @@ contract PowerComputeToken is ERC20, Ownable, Pausable, ReentrancyGuard {
 
     mapping(address => StakerInfo) public stakers;
 
+    // ------------------------------------------------------------------
+    // Staking checkpoints (audit fix, finding #4)
+    //
+    // PowerComputeGovernor originally read `stakedBalanceOf()` LIVE, at the
+    // exact moment of voting — meaning anyone could stake right before
+    // casting a vote on a contentious proposal and unstake immediately
+    // after, manipulating the tally with no real economic commitment
+    // ("flash-stake voting"). The standard fix (used by Compound's
+    // COMP/OZ's ERC20Votes) is historical checkpointing: record every
+    // change to a staked balance against the block number it happened at,
+    // so governance can ask "what was this account's staked balance AT
+    // block N" — a value that can no longer be changed retroactively once
+    // block N has passed. `getPastStakedBalance`/`getPastTotalStaked`
+    // below are queried by PowerComputeGovernor against a snapshot block
+    // fixed at proposal-creation time (see that contract).
+    // ------------------------------------------------------------------
+
+    struct Checkpoint {
+        uint256 fromBlock;
+        uint256 amount;
+    }
+
+    mapping(address => Checkpoint[]) private _stakeCheckpoints;
+    Checkpoint[] private _totalStakedCheckpoints;
+
+    function _writeCheckpoint(Checkpoint[] storage checkpoints, uint256 newAmount) internal {
+        uint256 len = checkpoints.length;
+        if (len > 0 && checkpoints[len - 1].fromBlock == block.number) {
+            // Multiple changes in the same block: overwrite rather than
+            // append, so a single block number never has more than one
+            // checkpoint entry (keeps the binary search below correct and
+            // strictly increasing).
+            checkpoints[len - 1].amount = newAmount;
+        } else {
+            checkpoints.push(Checkpoint({ fromBlock: block.number, amount: newAmount }));
+        }
+    }
+
+    function _checkpointsLookup(Checkpoint[] storage checkpoints, uint256 blockNumber) internal view returns (uint256) {
+        uint256 len = checkpoints.length;
+        if (len == 0) return 0;
+
+        // Common case: querying the latest/current value.
+        if (checkpoints[len - 1].fromBlock <= blockNumber) {
+            return checkpoints[len - 1].amount;
+        }
+        if (checkpoints[0].fromBlock > blockNumber) {
+            return 0; // no recorded balance yet at that block
+        }
+
+        // Binary search for the latest checkpoint with fromBlock <= blockNumber.
+        uint256 low = 0;
+        uint256 high = len - 1;
+        while (low < high) {
+            uint256 mid = (low + high + 1) / 2; // bias toward high to converge on the answer, not just below it
+            if (checkpoints[mid].fromBlock <= blockNumber) {
+                low = mid;
+            } else {
+                high = mid - 1;
+            }
+        }
+        return checkpoints[low].amount;
+    }
+
+    /**
+     * @notice Returns `account`'s staked $PWR balance as of `blockNumber`.
+     *         Used by PowerComputeGovernor for snapshot-based voting power
+     *         instead of a live, manipulable balance.
+     */
+    function getPastStakedBalance(address account, uint256 blockNumber) external view returns (uint256) {
+        require(blockNumber <= block.number, "PWR: cannot query future block");
+        return _checkpointsLookup(_stakeCheckpoints[account], blockNumber);
+    }
+
+    /**
+     * @notice Returns the network's total staked $PWR as of `blockNumber`.
+     *         Used by PowerComputeGovernor to compute quorum against the
+     *         same historical snapshot as individual votes, rather than
+     *         mixing a historical numerator with a live denominator.
+     */
+    function getPastTotalStaked(uint256 blockNumber) external view returns (uint256) {
+        require(blockNumber <= block.number, "PWR: cannot query future block");
+        return _checkpointsLookup(_totalStakedCheckpoints, blockNumber);
+    }
+
     /// @notice Total $PWR currently staked across all users.
     uint256 public totalStaked;
 
@@ -89,6 +174,13 @@ contract PowerComputeToken is ERC20, Ownable, Pausable, ReentrancyGuard {
 
     /// @notice Optional lock-up period (seconds) users must wait after staking before unstaking.
     uint256 public unstakeCooldown = 0;
+
+    /// @notice Hard ceiling on unstakeCooldown (audit fix, finding #7):
+    ///         without this, the owner could set an arbitrarily long
+    ///         cooldown — even after users have already staked — and
+    ///         permanently freeze their principal. 30 days is a generous
+    ///         upper bound for any legitimate anti-flash-stake use case.
+    uint256 public constant MAX_UNSTAKE_COOLDOWN = 30 days;
 
     // ------------------------------------------------------------------
     // Events
@@ -211,6 +303,9 @@ contract PowerComputeToken is ERC20, Ownable, Pausable, ReentrancyGuard {
 
         totalStaked += amount;
 
+        _writeCheckpoint(_stakeCheckpoints[msg.sender], info.amount);
+        _writeCheckpoint(_totalStakedCheckpoints, totalStaked);
+
         emit Staked(msg.sender, amount, totalStaked);
     }
 
@@ -234,6 +329,9 @@ contract PowerComputeToken is ERC20, Ownable, Pausable, ReentrancyGuard {
         info.rewardDebt = (info.amount * accRewardPerShare) / ACC_PRECISION;
 
         totalStaked -= amount;
+
+        _writeCheckpoint(_stakeCheckpoints[msg.sender], info.amount);
+        _writeCheckpoint(_totalStakedCheckpoints, totalStaked);
 
         _transfer(address(this), msg.sender, amount);
 
@@ -319,9 +417,16 @@ contract PowerComputeToken is ERC20, Ownable, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Set a minimum lock-up (in seconds) required between staking and unstaking.
+     * @notice Set a minimum lock-up (in seconds) required between staking
+     *         and unstaking. Capped at MAX_UNSTAKE_COOLDOWN. Note this
+     *         still applies to everyone's `lastStakeTime` retroactively —
+     *         by design a cooldown is meant to slow down flash-stake
+     *         voting/reward manipulation for EVERYONE, including existing
+     *         stakers — but the hard cap bounds how bad "retroactive" can
+     *         possibly be (30 days maximum, never indefinite).
      */
     function setUnstakeCooldown(uint256 newCooldownSeconds) external onlyOwner {
+        require(newCooldownSeconds <= MAX_UNSTAKE_COOLDOWN, "PWR: cooldown exceeds max");
         emit UnstakeCooldownUpdated(unstakeCooldown, newCooldownSeconds);
         unstakeCooldown = newCooldownSeconds;
     }
@@ -342,6 +447,11 @@ contract PowerComputeToken is ERC20, Ownable, Pausable, ReentrancyGuard {
     function recoverForeignToken(address tokenAddress, uint256 amount, address to) external onlyOwner {
         require(tokenAddress != address(this), "PWR: cannot recover native token");
         require(to != address(0), "PWR: zero address recipient");
-        IERC20(tokenAddress).transfer(to, amount);
+        // Audit fix (finding #9): check the return value instead of
+        // ignoring it. Some non-standard ERC-20 tokens return `false` on
+        // failure instead of reverting; silently ignoring that would make
+        // this function appear to succeed while moving nothing.
+        bool ok = IERC20(tokenAddress).transfer(to, amount);
+        require(ok, "PWR: foreign token transfer failed");
     }
 }

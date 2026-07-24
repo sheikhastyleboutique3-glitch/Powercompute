@@ -4,15 +4,18 @@ pragma solidity ^0.8.20;
 import "./common/PowerComputeBase.sol";
 
 /**
- * @dev Minimal read-only interface into PowerComputeToken's staking state —
- *      voting power in this governor is exactly "how much $PWR you have
- *      staked", which both rewards long-term alignment and reuses state
- *      that already exists on-chain (no separate snapshot/delegation
- *      system needed for a v1 advisory governor).
+ * @dev Minimal read-only interface into PowerComputeToken's staking state.
+ *      Voting power is "how much $PWR you had staked at a specific
+ *      snapshot block" (audit fix, finding #4 — see contract-level notice
+ *      below), read via `getPastStakedBalance`/`getPastTotalStaked`, which
+ *      PowerComputeToken implements with a checkpoint history rather than
+ *      a single live value.
  */
 interface IPowerComputeStakeReader {
     function stakedBalanceOf(address user) external view returns (uint256);
     function totalStaked() external view returns (uint256);
+    function getPastStakedBalance(address account, uint256 blockNumber) external view returns (uint256);
+    function getPastTotalStaked(uint256 blockNumber) external view returns (uint256);
 }
 
 /**
@@ -33,10 +36,17 @@ interface IPowerComputeStakeReader {
  *         layered on top later once the DAO is ready to hold real
  *         execution rights (see the Q4 roadmap milestone).
  *
- * Voting power = `PowerComputeToken.stakedBalanceOf(voter)` at the moment
- * of voting (not a historical snapshot — simple, but means voting power
- * can change between proposal creation and a given vote; fine for an
- * advisory v1 governor on a testnet-scale community).
+ * AUDIT FIX (finding #4): voting power is now `PowerComputeToken
+ * .getPastStakedBalance(voter, proposal.snapshotBlock)` — a checkpointed
+ * historical balance frozen at the block the proposal was CREATED, not a
+ * live balance read at the moment of voting. The original design read
+ * `stakedBalanceOf()` live, which let anyone stake right before voting on
+ * a contentious proposal and unstake immediately after ("flash-stake
+ * voting"), manipulating the tally with no real economic commitment.
+ * Because the snapshot block is fixed in the past relative to every vote
+ * on that proposal, staking or unstaking after a proposal is created has
+ * zero effect on anyone's voting weight for it — exactly the guarantee
+ * OpenZeppelin's ERC20Votes/Governor checkpoint system provides.
  */
 contract PowerComputeGovernor is Ownable {
     // ------------------------------------------------------------------
@@ -62,6 +72,7 @@ contract PowerComputeGovernor is Ownable {
         uint256 againstVotes;
         uint256 abstainVotes;
         bool executed;
+        uint256 snapshotBlock; // block number voting power is checkpointed against (audit fix #4)
     }
 
     // ------------------------------------------------------------------
@@ -122,6 +133,13 @@ contract PowerComputeGovernor is Ownable {
 
         uint256 startTime = block.timestamp;
         uint256 endTime = startTime + votingPeriodSeconds;
+        // Snapshot at the PREVIOUS block: the proposal's own creation
+        // transaction is still pending/being mined at `block.number`, so
+        // using `block.number - 1` guarantees the snapshot reflects fully
+        // settled, previously-confirmed stake state that cannot possibly
+        // include any last-second staking done specifically to influence
+        // this exact proposal within the same block.
+        uint256 snapshotBlock = block.number > 0 ? block.number - 1 : 0;
 
         proposals[proposalId] = Proposal({
             id: proposalId,
@@ -133,7 +151,8 @@ contract PowerComputeGovernor is Ownable {
             forVotes: 0,
             againstVotes: 0,
             abstainVotes: 0,
-            executed: false
+            executed: false,
+            snapshotBlock: snapshotBlock
         });
 
         emit ProposalCreated(proposalId, msg.sender, title, startTime, endTime);
@@ -152,8 +171,11 @@ contract PowerComputeGovernor is Ownable {
         require(!hasVoted[proposalId][msg.sender], "Governor: already voted");
         require(support <= 2, "Governor: invalid support value");
 
-        uint256 weight = stakeToken.stakedBalanceOf(msg.sender);
-        require(weight > 0, "Governor: no staked balance, no voting power");
+        // Audit fix #4: weight comes from the historical snapshot fixed at
+        // proposal creation, not a live balance that could be manipulated
+        // by staking right before this call.
+        uint256 weight = stakeToken.getPastStakedBalance(msg.sender, proposal.snapshotBlock);
+        require(weight > 0, "Governor: no staked balance at proposal snapshot, no voting power");
 
         hasVoted[proposalId][msg.sender] = true;
 
@@ -203,8 +225,13 @@ contract PowerComputeGovernor is Ownable {
         }
 
         uint256 totalVotes = proposal.forVotes + proposal.againstVotes + proposal.abstainVotes;
-        uint256 totalStakedNow = stakeToken.totalStaked();
-        uint256 requiredQuorum = (totalStakedNow * quorumBps) / 10_000;
+        // Audit fix #4: quorum is computed against the SAME historical
+        // snapshot as the votes themselves, not a live totalStaked() that
+        // could have grown or shrunk since — mixing a historical numerator
+        // with a live denominator would make quorum an inconsistent,
+        // manipulable target.
+        uint256 totalStakedAtSnapshot = stakeToken.getPastTotalStaked(proposal.snapshotBlock);
+        uint256 requiredQuorum = (totalStakedAtSnapshot * quorumBps) / 10_000;
 
         if (totalVotes < requiredQuorum || proposal.forVotes <= proposal.againstVotes) {
             return ProposalState.Defeated;
