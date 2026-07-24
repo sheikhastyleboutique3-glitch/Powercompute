@@ -366,7 +366,7 @@ async function pcDisconnectWallet() {
   PC.wcProvider = null;
 
   pcClearPersistedWalletKind();
-  pcToast("Wallet disconnected.", "info");
+  pcToast(window.pcT ? pcT('common.wallet.disconnected', 'Wallet disconnected.') : 'Wallet disconnected.', "info");
 
   window.location.reload();
 }
@@ -397,7 +397,7 @@ function pcUpdateWalletUI(connected) {
       el.classList.add('text-emerald-glow');
     });
   } else {
-    labelEls.forEach(el => { el.textContent = 'Connect Wallet'; });
+    labelEls.forEach(el => { el.textContent = window.pcT ? pcT('common.connectWallet', 'Connect Wallet') : 'Connect Wallet'; });
     connectBtns.forEach(btn => {
       btn.classList.remove('ring-2', 'ring-emerald-400');
       delete btn.dataset.pcConnected;
@@ -417,30 +417,31 @@ function pcBuildAccountMenu() {
   const overlay = document.createElement('div');
   overlay.id = 'pc-account-menu';
   overlay.className = 'fixed inset-0 z-[110] hidden items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-4 sm:pb-0';
+  const t = (key, fallback) => (window.pcT ? window.pcT(key, fallback) : fallback);
   overlay.innerHTML = `
     <div class="glass glass-border-glow rounded-2xl w-full sm:w-96 p-5">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-base flex items-center gap-2">
-          <i data-lucide="wallet" class="w-4 h-4 text-emerald-glow"></i> Wallet
+          <i data-lucide="wallet" class="w-4 h-4 text-emerald-glow"></i> <span data-i18n="common.wallet.accountTitle">${t('common.wallet.accountTitle', 'Wallet')}</span>
         </h3>
         <button id="pc-account-menu-close" class="text-slate-500 hover:text-slate-300">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
       <div class="glass rounded-xl p-3 mb-3">
-        <p class="text-[11px] text-slate-500 mb-1">Connected address</p>
+        <p class="text-[11px] text-slate-500 mb-1" data-i18n="common.wallet.connectedAddress">${t('common.wallet.connectedAddress', 'Connected address')}</p>
         <p class="mono text-sm font-semibold break-all" id="pc-account-menu-address">--</p>
       </div>
       <div class="grid grid-cols-2 gap-2 mb-2">
         <button id="pc-account-menu-copy" class="flex items-center justify-center gap-2 rounded-lg glass glass-border-glow px-3 py-2.5 text-sm font-semibold text-slate-200 hover:border-cyan-glow transition">
-          <i data-lucide="copy" class="w-4 h-4"></i> Copy
+          <i data-lucide="copy" class="w-4 h-4"></i> <span data-i18n="common.wallet.copy">${t('common.wallet.copy', 'Copy')}</span>
         </button>
         <a id="pc-account-menu-explorer" href="#" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 rounded-lg glass glass-border-glow px-3 py-2.5 text-sm font-semibold text-slate-200 hover:border-cyan-glow transition">
-          <i data-lucide="external-link" class="w-4 h-4"></i> Explorer
+          <i data-lucide="external-link" class="w-4 h-4"></i> <span data-i18n="common.wallet.explorer">${t('common.wallet.explorer', 'Explorer')}</span>
         </a>
       </div>
       <button id="pc-account-menu-disconnect" class="w-full flex items-center justify-center gap-2 rounded-lg bg-red-500/15 border border-red-500/30 px-3 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/25 transition">
-        <i data-lucide="log-out" class="w-4 h-4"></i> Disconnect
+        <i data-lucide="log-out" class="w-4 h-4"></i> <span data-i18n="common.wallet.disconnect">${t('common.wallet.disconnect', 'Disconnect')}</span>
       </button>
     </div>
   `;
@@ -454,8 +455,8 @@ function pcBuildAccountMenu() {
   document.getElementById('pc-account-menu-copy').addEventListener('click', () => {
     if (!PC.address) return;
     navigator.clipboard.writeText(PC.address)
-      .then(() => pcToast("Address copied to clipboard!", "success"))
-      .catch(() => pcToast("Could not copy automatically — address shown above.", "info"));
+      .then(() => pcToast(t('common.wallet.addressCopied', 'Address copied to clipboard!'), "success"))
+      .catch(() => pcToast(t('common.wallet.copyFailed', 'Could not copy automatically — address shown above.'), "info"));
   });
 
   document.getElementById('pc-account-menu-disconnect').addEventListener('click', () => {
@@ -528,11 +529,12 @@ function pcBuildWalletPicker() {
   const overlay = document.createElement('div');
   overlay.id = 'pc-wallet-picker';
   overlay.className = 'fixed inset-0 z-[110] hidden items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-4 sm:pb-0';
+  const t = (key, fallback) => (window.pcT ? window.pcT(key, fallback) : fallback);
   overlay.innerHTML = `
     <div class="glass glass-border-glow rounded-2xl w-full sm:w-96 p-5 max-h-[80vh] overflow-y-auto scrollbar-thin">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-base flex items-center gap-2">
-          <i data-lucide="wallet" class="w-4 h-4 text-emerald-glow"></i> Connect a Wallet
+          <i data-lucide="wallet" class="w-4 h-4 text-emerald-glow"></i> <span data-i18n="common.wallet.connectTitle">${t('common.wallet.connectTitle', 'Connect a Wallet')}</span>
         </h3>
         <button id="pc-wallet-picker-close" class="text-slate-500 hover:text-slate-300">
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -542,19 +544,19 @@ function pcBuildWalletPicker() {
         <button id="pc-picker-injected" class="w-full flex items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-3.5 font-semibold text-charcoal hover:brightness-110 transition text-left">
           <i data-lucide="chrome" class="w-5 h-5 shrink-0"></i>
           <span>
-            <span class="block text-sm">Browser Extension</span>
-            <span class="block text-xs opacity-80">MetaMask, Coinbase Wallet, Rabby, etc.</span>
+            <span class="block text-sm" data-i18n="common.wallet.injectedTitle">${t('common.wallet.injectedTitle', 'Browser Extension')}</span>
+            <span class="block text-xs opacity-80" data-i18n="common.wallet.injectedSubtitle">${t('common.wallet.injectedSubtitle', 'MetaMask, Coinbase Wallet, Rabby, etc.')}</span>
           </span>
         </button>
         <button id="pc-picker-walletconnect" class="w-full flex items-center gap-3 rounded-xl glass glass-border-glow px-4 py-3.5 font-semibold text-slate-100 hover:border-cyan-glow transition text-left">
           <i data-lucide="qr-code" class="w-5 h-5 shrink-0 text-cyan-glow"></i>
           <span>
-            <span class="block text-sm">WalletConnect</span>
-            <span class="block text-xs text-slate-400">Scan a QR code with any mobile wallet app</span>
+            <span class="block text-sm" data-i18n="common.wallet.walletConnectTitle">${t('common.wallet.walletConnectTitle', 'WalletConnect')}</span>
+            <span class="block text-xs text-slate-400" data-i18n="common.wallet.walletConnectSubtitle">${t('common.wallet.walletConnectSubtitle', 'Scan a QR code with any mobile wallet app')}</span>
           </span>
         </button>
       </div>
-      <p class="text-[11px] text-slate-500 mt-4 text-center">On mobile without a wallet browser extension, choose WalletConnect.</p>
+      <p class="text-[11px] text-slate-500 mt-4 text-center" data-i18n="common.wallet.pickerFooterNote">${t('common.wallet.pickerFooterNote', 'On mobile without a wallet browser extension, choose WalletConnect.')}</p>
     </div>
   `;
   document.body.appendChild(overlay);

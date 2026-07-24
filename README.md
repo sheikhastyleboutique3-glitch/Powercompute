@@ -27,6 +27,8 @@ all deployable for free, no backend, no database, no build step.
 14. [Post-Deploy Checklist](#14-post-deploy-checklist)
 15. [Audit Findings & Fixes](#15-audit-findings--fixes)
 16. [Disclaimer](#16-disclaimer)
+17. [Internationalization (i18n) & RTL Support](#17-internationalization-i18n--rtl-support)
+18. [3D Animated Hero (Three.js)](#18-3d-animated-hero-threejs)
 
 ---
 
@@ -89,6 +91,15 @@ file **and** the CSS variables at the top of `assets/css/style.css` — both
 need to match since Tailwind utility classes and the shared stylesheet
 work together.
 
+**Language switcher (`.pc-lang-toggle`):** a small pill button (labeled
+`EN`/`AR`) in the nav bar and mobile menu of every page, toggling between
+English and Arabic with full RTL layout support — see Section 17.
+
+**3D animated hero (`index.html` only):** the homepage hero section
+renders an animated Three.js scene (compute core, orbiting staking nodes,
+solar panel, wind turbine, energy particle streams, starfield) behind the
+hero text, with scroll-driven parallax — see Section 18.
+
 ---
 
 ## 2. Project Structure
@@ -106,10 +117,15 @@ Powercompute/
 │   ├── PowerComputeGovernor.sol      # Snapshot-based, stake-weighted advisory governance
 │   └── PowerComputeTimelock.sol      # Optional timelock controller for delayed, transparent admin actions
 ├── assets/
-│   ├── css/style.css                 # Shared design system — see Section 1
+│   ├── css/style.css                 # Shared design system + RTL rules + 3D hero CSS — see Sections 1, 17, 18
+│   ├── i18n/
+│   │   ├── en.js                     # English translation dictionary (window.PC_I18N_EN) — see Section 17
+│   │   └── ar.js                     # Arabic translation dictionary (window.PC_I18N_AR) — see Section 17
 │   └── js/
 │       ├── config.js                 # ⚠️ EDIT THIS: contract addresses + ABIs (single source of truth)
-│       └── wallet.js                 # Wallet connection (injected + WalletConnect), persistence, account menu
+│       ├── wallet.js                 # Wallet connection (injected + WalletConnect), persistence, account menu
+│       ├── i18n.js                   # Language engine: load/apply/switch/persist/RTL toggle — see Section 17
+│       └── hero3d.js                 # Three.js animated hero scene (index.html only) — see Section 18
 ├── index.html                        # Public landing page (hero, presale+referrals, calculator, chart, staking, news)
 ├── dashboard.html                    # Node operator portal (register nodes, referral link, vesting, alerts)
 ├── governance.html                   # Public stake-weighted voting page
@@ -661,3 +677,250 @@ real funds without a full third-party security audit and the hardening
 steps in Section 12. Governance is advisory only and does not
 automatically execute on-chain actions. $PWR is a utility/governance
 token; nothing in this repo constitutes financial or investment advice.
+
+
+## 17. Internationalization (i18n) & RTL Support
+
+The entire site supports **English (EN)** and **Modern Standard Arabic
+(AR, right-to-left)**, with zero build step — same philosophy as the rest
+of this repo: plain `.js` files attaching a global object, not JSON
+fetched over `XHR`/`fetch` (which risks CORS/MIME-type failures when a
+page is opened directly from disk or from certain static hosts).
+
+### How it works
+
+- **Dictionaries:** [`assets/i18n/en.js`](./assets/i18n/en.js) and
+  [`assets/i18n/ar.js`](./assets/i18n/ar.js) each attach a plain object
+  (`window.PC_I18N_EN` / `window.PC_I18N_AR`) with **dot-path keys**, e.g.
+  `"index.hero.badge"` or `"common.nav.staking"`. Each dictionary also has
+  a `meta` block: `dir` (`"ltr"`/`"rtl"`), `langLabel` (shown on the
+  switcher button), and `fontFamily` (swapped onto `<body>` when that
+  language is active — Arabic uses `'Noto Kufi Arabic', 'Cairo'`).
+- **Engine:** [`assets/js/i18n.js`](./assets/js/i18n.js) — loaded on every
+  page, **after** both dictionary scripts and **before** any page-specific
+  script:
+  ```html
+  <script src="./assets/i18n/en.js"></script>
+  <script src="./assets/i18n/ar.js"></script>
+  <script src="./assets/js/i18n.js"></script>
+  ```
+  On `DOMContentLoaded`, it reads the saved language from `localStorage`
+  (key `pc_lang`, defaults to `"en"`) and applies it by walking every
+  element with one of these attributes:
+  | Attribute | Effect |
+  |---|---|
+  | `data-i18n="dot.path.key"` | Sets `el.textContent` |
+  | `data-i18n-placeholder="dot.path.key"` | Sets the `placeholder` attribute (form inputs) |
+  | `data-i18n-content="dot.path.key"` | Sets the `content` attribute (`<meta>` tags) |
+  | `data-i18n-title="dot.path.key"` | Sets `document.title` |
+
+  It also flips `<html lang="..." dir="ltr\|rtl" class="rtl">` (the `rtl`
+  class is what CSS RTL overrides key off of — see below), swaps the body
+  font, updates `[data-lang-current-label]` / `[data-lang-option]`
+  elements, and dispatches a `pc:langchange` custom event so other scripts
+  (e.g. `hero3d.js`, if you extend it to react to direction changes) can
+  respond.
+- **Language switcher:** a single pill button
+  (`<button data-lang-toggle class="pc-lang-toggle">…<span
+  data-lang-current-label>EN</span></button>`) in the nav bar and mobile
+  menu of every page. Since there are only two languages, tapping it just
+  flips directly to the other one — no dropdown needed.
+- **Fallback-safe by design:** the English text already sitting inside
+  each tag in the HTML is the fallback. If a `data-i18n` key is ever
+  missing or mistyped in a dictionary, the page shows that English text
+  instead of a blank string or a raw `"index.hero.badge"`-style key — a
+  much safer failure mode for a live dApp than breaking the page.
+- **Dynamic/JS-generated content:** for text built at runtime (e.g. the
+  homepage's news cards, or `wallet.js`'s wallet picker/account
+  menu/toasts, which don't exist in the HTML source to carry a
+  `data-i18n` attribute until they're injected), use the
+  `pcT(key, fallbackString)` helper exposed by `i18n.js` instead:
+  ```js
+  const label = pcT('common.wallet.disconnect', 'Disconnect');
+  ```
+- **Text with embedded inline-styled spans:** a handful of dictionary
+  entries (e.g. the hero subtitle, which has a highlighted `$PWR` in the
+  middle) are split into `xxxPre` / `xxxMid` / `xxxPost` keys rather than
+  one string, because `data-i18n` sets `el.textContent` — writing HTML
+  markup into a translated string would either get escaped as literal
+  text or (if using `innerHTML` instead) risk breaking layout/introducing
+  an XSS surface from a translator-edited file. Splitting the string
+  around the styled span keeps the translation 100% plain text while the
+  surrounding HTML markup stays untouched in the page source.
+
+### RTL layout
+
+Tailwind is loaded from the CDN in JIT mode, which has **no RTL
+variant/plugin support**, so `assets/css/style.css` has a dedicated `html.rtl`
+block (see the "RTL SUPPORT" comment header in that file) that re-declares
+just the directional patterns actually used in this project's markup as
+logical-property equivalents:
+- `.text-left` / `.text-right` swap.
+- `.pc-flip-rtl` — a helper class you add to any icon+label row that
+  should visually flip (icon moves to the leading/right side in Arabic).
+- The `.nav-link::after` hover/active underline mirrors to grow from the
+  right instead of the left.
+- **Deliberately excluded from mirroring:** `canvas` elements (Chart.js),
+  `[data-lucide]` icons, and anything with the `.mono` class (balances,
+  addresses, tx hashes, and numeric `<input>` fields) — these are forced
+  to stay `direction: ltr` even on an Arabic page, because a mirrored
+  chart axis or a right-to-left hex address would be unreadable/ambiguous
+  regardless of the page's language.
+
+### Translation scope per page
+
+`index.html` has **full** section-by-section translation (nav, hero,
+metrics, presale, calculator, chart, staking, how-it-works, roadmap,
+tokenomics, news, footer — ~140 keys under the `index.*` and `common.*`
+branches). `dashboard.html`, `governance.html`, `leaderboard.html`, and
+`admin.html` get the **shared nav + page title + page header** translated
+(`common.nav.*`, `common.footer.*`, and a `pages.<page>.*` branch per
+page) — this was an explicit scope decision to keep translation effort
+proportional to how much of each page a typical visitor actually reads;
+deeper content (stats tables, forms, proposal lists) on those four pages
+stays English-only for now.
+
+### Adding a new language
+
+1. Copy `assets/i18n/ar.js` to e.g. `assets/i18n/fr.js` and translate
+   every string, keeping the **exact same key structure** as `en.js`
+   (same nesting, same key names) — the engine does a plain dot-path
+   lookup, so a missing branch just falls back to English rather than
+   erroring, but a renamed key will silently never be used.
+2. Set `meta.dir` to `"ltr"` or `"rtl"`, `meta.langLabel` to the code
+   you want shown on the switcher button (e.g. `"FR"`), and `meta.fontFamily`
+   to an appropriate web font stack (add the Google Fonts `<link>` for it
+   alongside the existing Space Grotesk/Noto Kufi Arabic/Cairo one in each
+   HTML `<head>` if it's a new font family).
+3. In `assets/js/i18n.js`: add the new code to `PC_SUPPORTED_LANGS`, and
+   extend `pcGetDictionary(lang)` to return `window.PC_I18N_FR` for that
+   code.
+4. Add `<script src="./assets/i18n/fr.js"></script>` to every HTML page's
+   `<head>`, right alongside the existing `en.js`/`ar.js` tags (before
+   `i18n.js`).
+5. If you go beyond 2 languages, consider changing the switcher from a
+   single toggle button to a small dropdown (`[data-lang-option]`
+   elements already get an active-state class managed for you by
+   `pcApplyTranslations()`, so a dropdown UI mostly just needs new markup,
+   not new engine logic).
+
+### Guidance for translators editing an existing dictionary
+
+- Never remove or rename a key — only change the string value. A renamed
+  key breaks that specific piece of text (silently falls back to English)
+  without breaking the page.
+- Keep `Pre`/`Mid`/`Post`-suffixed keys (see above) as separate strings —
+  don't merge them back into one, since the HTML markup in between them
+  depends on the split.
+- Placeholders like `$PWR`, contract/file names (`NodeRegistry.sol`,
+  `assets/js/config.js`), and numbers should generally stay untranslated/
+  unchanged inside a translated sentence — only the surrounding language
+  should change.
+- After editing, run `node --check assets/i18n/<lang>.js` to catch a
+  stray missing comma/quote before committing (these files are hand-edited
+  JS object literals, not JSON, so a syntax slip breaks the whole page's
+  script loading, not just that one string).
+
+---
+
+## 18. 3D Animated Hero (Three.js)
+
+The homepage (`index.html` only) hero section renders a live, scroll-aware
+3D scene themed around the protocol's story — energy flowing from
+renewable sources into AI compute — behind the existing hero text and
+CTAs.
+
+### How it's loaded (no build step)
+
+Three.js is resolved via a browser-native **import map** in `index.html`'s
+`<head>` (pinned to a specific version on the `unpkg` CDN), not npm:
+```html
+<script type="importmap">
+  { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+```
+The scene itself is [`assets/js/hero3d.js`](./assets/js/hero3d.js), loaded
+as an ES module near the end of `<body>`:
+```html
+<script type="module" src="./assets/js/hero3d.js"></script>
+```
+Inside that file, `import * as THREE from "three"` resolves through the
+import map above — same zero-build-step philosophy as the rest of this
+repo, just using a browser feature (import maps) instead of a bundler.
+
+### Scene contents
+
+| Element | What it represents | Implementation |
+|---|---|---|
+| Central core | The GPU/AI compute demand | An emissive-emerald icosahedron + a wireframe cyan "shell" mesh orbiting it at a different speed, continuously rotating |
+| Orbiting spheres | $PWR stakers participating in the network | 8 small spheres (5 on mobile) alternating emerald/cyan emissive materials, each with its own randomized orbit radius/speed/tilt |
+| Solar panel | Renewable energy source #1 | A tilted 2×3 grid of glowing panel cells + frame + pole, with a slow pulsing emissive "glint" animation |
+| Wind turbine | Renewable energy source #2 | A tower + hub + 3 blades that spin continuously |
+| Energy particle streams | Energy routed from sources to compute demand | Small point clouds following a curved (quadratic-lerp) path from the solar panel / turbine toward the core, looping continuously |
+| Starfield | Ambient depth/atmosphere | A spherical point cloud (600 points desktop / 250 mobile) with very slow ambient rotation |
+
+All colors are theme-locked to two constants at the top of the file —
+`EMERALD` (`0x10b981`) and `CYAN` (`0x06b6d4`) — matching the rest of the
+site's design system (Section 1). To change the hero's palette, edit
+these two constants; every material in the scene references one of them.
+
+### Scroll-driven animation
+
+The scene listens for `scroll` (passive) and computes a `scrollProgress`
+value from `0` (hero fully in view) to `1` (hero fully scrolled past),
+based on the hero `<section id="top">`'s `getBoundingClientRect()`. Every
+animation frame, this drives:
+- **Core rotation speed** — spins faster as you scroll away.
+- **Camera dolly + drift** — the camera moves closer and slightly upward
+  as `scrollProgress` increases, for a parallax feel.
+- **Canvas opacity fade** — the whole scene fades out via CSS opacity on
+  the `<canvas>` element as the hero leaves view, so the transition to the
+  metrics/presale sections below feels intentional rather than the 3D
+  scene abruptly vanishing or persisting oddly behind unrelated content.
+
+### Responsiveness & performance
+
+- **Resize:** a `resize` listener updates the camera aspect ratio and
+  renderer size to match `#pc-hero-3d-container`'s current dimensions.
+- **Low-power path:** if `window.innerWidth < 768` at load time
+  (`IS_LOW_POWER`), star count, particle-stream point count, and staking
+  node count are all reduced, and `devicePixelRatio` is capped at `1.5`
+  instead of `2` — meaningfully cheaper to render on phones/tablets.
+- **Pause when off-screen:** an `IntersectionObserver` on the container
+  (plus a `visibilitychange` listener for backgrounded tabs) sets an
+  `isRendering` flag that skips all scene updates in the animation loop
+  when the hero isn't visible — saves battery/CPU on long scroll sessions
+  without needing to tear down and rebuild the renderer.
+
+### Fallback behavior (accessibility + compatibility)
+
+Before touching Three.js or WebGL **at all**, `hero3d.js` checks, in order:
+1. **`prefers-reduced-motion: reduce`** — if the user's OS/browser
+   requests reduced motion, the 3D scene is skipped entirely.
+2. **WebGL availability** — a throwaway `<canvas>` context probe
+   (`canvas.getContext("webgl")`) confirms the browser/device can actually
+   render WebGL before importing Three.js.
+3. **CDN import failure** — the dynamic `import("three")` call is wrapped
+   in a `try`/`catch`; if `unpkg` is unreachable or blocked, this also
+   falls back gracefully rather than throwing an unhandled error.
+
+In any of these cases, a `<div class="pc-hero-3d-fallback">` (a static
+emerald/cyan radial-gradient glow, defined in `assets/css/style.css`) is
+inserted into `#pc-hero-3d-container` instead — the hero never looks
+broken, empty, or half-loaded; it just shows a non-animated version of the
+same color treatment.
+
+### How to extend the scene
+
+Everything is a named `THREE.Group`/`THREE.Mesh` local variable inside
+`pcInitHero3D()` in `hero3d.js` (e.g. `coreGroup`, `solarGroup`,
+`turbineGroup`, `stakingNodes`, `energyStreams`) — to add a new object,
+build it the same way (geometry + material + optional group), `scene.add()`
+it, and add whatever per-frame update it needs inside the `animate()`
+function at the bottom of the file. To mount the scene somewhere else
+entirely, give that page's markup an element with `id="pc-hero-3d-container"`
+and load `hero3d.js` the same way — `pcInitHero3D()` looks up that ID and
+does nothing if it isn't found, so the same script is safe to include on
+any page.
+
+---

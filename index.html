@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PowerCompute ($PWR) — Decentralized Energy-to-Compute Orchestration Protocol</title>
-<meta name="description" content="PowerCompute ($PWR) routes stranded green energy into verified AI compute demand. Stake, calculate yield, register GPU nodes, and join the testnet." />
+<title data-i18n-title="index.title">PowerCompute ($PWR) — Decentralized Energy-to-Compute Orchestration Protocol</title>
+<meta name="description" data-i18n-content="index.description" content="PowerCompute ($PWR) routes stranded green energy into verified AI compute demand. Stake, calculate yield, register GPU nodes, and join the testnet." />
 <meta name="keywords" content="PowerCompute, PWR token, DePIN, decentralized energy, AI compute, GPU staking, renewable energy blockchain, Base Sepolia, Web3" />
 <meta name="robots" content="index, follow" />
 <link rel="canonical" href="https://powercompute.vercel.app/" />
@@ -34,13 +34,27 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<!-- Google Fonts -->
+<!-- Three.js (ES module build via CDN import map — no npm/build step needed,
+     consistent with this project's "just static files" approach). Powers the
+     animated 3D hero scene in assets/js/hero3d.js; see that file for the
+     WebGL-availability + prefers-reduced-motion fallback logic. -->
+<script type="importmap">
+  { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<!-- Google Fonts (Latin + Arabic stacks — Noto Kufi Arabic/Cairo used when the
+     page is switched to Arabic; see assets/js/i18n.js) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Kufi+Arabic:wght@400;500;600;700&family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <!-- Shared PowerCompute design system -->
 <link rel="stylesheet" href="./assets/css/style.css">
+
+<!-- i18n dictionaries (EN/AR) + engine — loaded before any page script so
+     translations are ready by the time DOMContentLoaded fires -->
+<script src="./assets/i18n/en.js"></script>
+<script src="./assets/i18n/ar.js"></script>
+<script src="./assets/js/i18n.js"></script>
 
 <script>
   tailwind.config = {
@@ -81,61 +95,83 @@
       <span>Power<span class="text-gradient">Compute</span></span>
     </a>
     <nav class="hidden md:flex items-center gap-7 text-sm text-slate-300">
-      <a href="#metrics" class="nav-link active">Protocol</a>
-      <a href="#calculator" class="nav-link">Yield Calculator</a>
-      <a href="#chart" class="nav-link">Live Grid</a>
-      <a href="#staking" class="nav-link">Staking</a>
-      <a href="#roadmap" class="nav-link">Roadmap</a>
-      <a href="#news" class="nav-link">News</a>
-      <a href="dashboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="server" class="w-3.5 h-3.5"></i>Node Dashboard</a>
-      <a href="leaderboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="trophy" class="w-3.5 h-3.5"></i>Leaderboard</a>
-      <a href="governance.html" class="nav-link flex items-center gap-1.5"><i data-lucide="landmark" class="w-3.5 h-3.5"></i>Governance</a>
+      <a href="#metrics" class="nav-link active" data-i18n="common.nav.protocol">Protocol</a>
+      <a href="#calculator" class="nav-link" data-i18n="common.nav.yieldCalculator">Yield Calculator</a>
+      <a href="#chart" class="nav-link" data-i18n="common.nav.liveGrid">Live Grid</a>
+      <a href="#staking" class="nav-link" data-i18n="common.nav.staking">Staking</a>
+      <a href="#roadmap" class="nav-link" data-i18n="common.nav.roadmap">Roadmap</a>
+      <a href="#news" class="nav-link" data-i18n="common.nav.news">News</a>
+      <a href="dashboard.html" class="nav-link flex items-center gap-1.5 pc-flip-rtl"><i data-lucide="server" class="w-3.5 h-3.5"></i><span data-i18n="common.nav.nodeDashboard">Node Dashboard</span></a>
+      <a href="leaderboard.html" class="nav-link flex items-center gap-1.5 pc-flip-rtl"><i data-lucide="trophy" class="w-3.5 h-3.5"></i><span data-i18n="common.nav.leaderboard">Leaderboard</span></a>
+      <a href="governance.html" class="nav-link flex items-center gap-1.5 pc-flip-rtl"><i data-lucide="landmark" class="w-3.5 h-3.5"></i><span data-i18n="common.nav.governance">Governance</span></a>
     </nav>
-    <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
-      <i data-lucide="wallet" class="w-4 h-4"></i>
-      <span data-wallet-label>Connect Wallet</span>
-    </button>
-    <button id="mobile-menu-btn" class="md:hidden text-slate-300">
-      <i data-lucide="menu" class="w-6 h-6"></i>
-    </button>
+    <div class="flex items-center gap-3">
+      <button data-lang-toggle class="pc-lang-toggle hidden sm:inline-flex" title="Toggle EN / AR">
+        <i data-lucide="languages" class="w-3.5 h-3.5"></i>
+        <span data-lang-current-label>EN</span>
+      </button>
+      <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+        <i data-lucide="wallet" class="w-4 h-4"></i>
+        <span data-wallet-label>Connect Wallet</span>
+      </button>
+      <button id="mobile-menu-btn" class="md:hidden text-slate-300">
+        <i data-lucide="menu" class="w-6 h-6"></i>
+      </button>
+    </div>
   </div>
   <div id="mobile-menu" class="hidden md:hidden border-t border-white/5 bg-charcoal/95 px-5 py-4 space-y-3 text-sm">
-    <a href="#metrics" class="block text-slate-300">Protocol</a>
-    <a href="#calculator" class="block text-slate-300">Yield Calculator</a>
-    <a href="#chart" class="block text-slate-300">Live Grid</a>
-    <a href="#staking" class="block text-slate-300">Staking</a>
-    <a href="#roadmap" class="block text-slate-300">Roadmap</a>
-    <a href="#news" class="block text-slate-300">News</a>
-    <a href="dashboard.html" class="block text-slate-300">Node Dashboard</a>
-    <a href="leaderboard.html" class="block text-slate-300">Leaderboard</a>
-    <a href="governance.html" class="block text-slate-300">Governance</a>
+    <a href="#metrics" class="block text-slate-300" data-i18n="common.nav.protocol">Protocol</a>
+    <a href="#calculator" class="block text-slate-300" data-i18n="common.nav.yieldCalculator">Yield Calculator</a>
+    <a href="#chart" class="block text-slate-300" data-i18n="common.nav.liveGrid">Live Grid</a>
+    <a href="#staking" class="block text-slate-300" data-i18n="common.nav.staking">Staking</a>
+    <a href="#roadmap" class="block text-slate-300" data-i18n="common.nav.roadmap">Roadmap</a>
+    <a href="#news" class="block text-slate-300" data-i18n="common.nav.news">News</a>
+    <a href="dashboard.html" class="block text-slate-300" data-i18n="common.nav.nodeDashboard">Node Dashboard</a>
+    <a href="leaderboard.html" class="block text-slate-300" data-i18n="common.nav.leaderboard">Leaderboard</a>
+    <a href="governance.html" class="block text-slate-300" data-i18n="common.nav.governance">Governance</a>
+    <button data-lang-toggle class="pc-lang-toggle w-full justify-center" title="Toggle EN / AR">
+      <i data-lucide="languages" class="w-3.5 h-3.5"></i>
+      <span data-lang-current-label>EN</span>
+    </button>
     <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
-      <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
+      <i data-lucide="wallet" class="w-4 h-4"></i> <span data-wallet-label>Connect Wallet</span>
     </button>
   </div>
 </header>
 
 <!-- ================= HERO ================= -->
-<section id="top" class="relative pt-16 lg:pt-24 pb-20 px-5 lg:px-8 max-w-7xl mx-auto">
-  <div class="flex flex-col items-center text-center gap-6">
+<section id="top" class="relative pt-16 lg:pt-24 pb-20 px-5 lg:px-8 max-w-7xl mx-auto overflow-hidden">
+  <!-- Positioning scope for the 3D scene — deliberately wraps ONLY the
+       hero text/CTA block (not the metrics grid below), so the canvas +
+       scrim are sized to the hero copy's natural height via `relative`
+       + the container's `position:absolute; inset:0`. See the "3D HERO
+       CANVAS" block in assets/css/style.css. -->
+  <div class="relative pc-hero-3d-scope">
+    <!-- 3D scene canvas mount point (assets/js/hero3d.js). Sits behind the
+         hero text/CTAs (z-index:0), with a gradient scrim above it
+         (z-index:1) for contrast and the text itself on top (z-index:2). -->
+    <div id="pc-hero-3d-container" aria-hidden="true"></div>
+    <div class="pc-hero-3d-scrim"></div>
+
+    <div class="pc-hero-content flex flex-col items-center text-center gap-6">
 
     <div class="glass glass-border-glow rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-mono text-emerald-glow animate-pulse-slow">
       <span class="relative flex h-2 w-2">
         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
         <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
       </span>
-      Testnet Active — Base Sepolia
+      <span data-i18n="index.hero.badge">Testnet Active — Base Sepolia</span>
     </div>
 
     <h1 class="text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.08] max-w-4xl">
-      Powering Next-Gen <span class="text-gradient">AI</span> with
-      <span class="text-gradient">Stranded Green Energy</span>
+      <span data-i18n="index.hero.title1">Powering Next-Gen</span> <span class="text-gradient" data-i18n="index.hero.titleAi">AI</span> <span data-i18n="index.hero.titleWith">with</span>
+      <span class="text-gradient" data-i18n="index.hero.title2">Stranded Green Energy</span>
     </h1>
 
     <p class="max-w-2xl text-base lg:text-lg text-slate-400">
-      PowerCompute is a decentralized orchestration layer that routes curtailed renewable
+      <span data-i18n="index.hero.subtitlePre">PowerCompute is a decentralized orchestration layer that routes curtailed renewable
       energy from wind &amp; solar farms directly into verified, on-demand GPU compute for AI
-      workloads — turning wasted electrons into intelligence, and rewarding operators in <span class="text-emerald-glow font-semibold">$PWR</span>.
+      workloads — turning wasted electrons into intelligence, and rewarding operators in</span> <span class="text-emerald-glow font-semibold">$PWR</span>.
     </p>
 
     <div class="flex flex-col sm:flex-row items-center gap-4 mt-2">
@@ -146,11 +182,12 @@
       </button>
       <a href="dashboard.html" class="flex items-center gap-2 rounded-xl glass glass-border-glow px-7 py-3.5 font-semibold text-slate-200 hover:border-cyan-glow hover:shadow-glow-cyan transition-all">
         <i data-lucide="compass" class="w-5 h-5 text-cyan-glow"></i>
-        Explore Ecosystem
+        <span data-i18n="index.hero.exploreEcosystem">Explore Ecosystem</span>
       </a>
     </div>
 
     <p data-wallet-status class="text-xs mono text-slate-500 mt-1"></p>
+    </div>
   </div>
 
   <!-- Live protocol metrics row -->
@@ -158,22 +195,22 @@
     <div class="glass glass-border-glow rounded-2xl p-5 lg:p-6 relative overflow-hidden">
       <i data-lucide="battery-charging" class="w-5 h-5 text-emerald-glow mb-3"></i>
       <p class="text-2xl lg:text-3xl font-bold mono" id="metric-energy">0</p>
-      <p class="text-xs text-slate-400 mt-1">Total Energy Routed (kWh)</p>
+      <p class="text-xs text-slate-400 mt-1" data-i18n="index.metrics.energyRouted">Total Energy Routed (kWh)</p>
     </div>
     <div class="glass glass-border-glow rounded-2xl p-5 lg:p-6 relative overflow-hidden">
       <i data-lucide="cpu" class="w-5 h-5 text-cyan-glow mb-3"></i>
       <p class="text-2xl lg:text-3xl font-bold mono" id="metric-gpus">0</p>
-      <p class="text-xs text-slate-400 mt-1">Active Nodes on Network</p>
+      <p class="text-xs text-slate-400 mt-1" data-i18n="index.metrics.activeNodes">Active Nodes on Network</p>
     </div>
     <div class="glass glass-border-glow rounded-2xl p-5 lg:p-6 relative overflow-hidden">
       <i data-lucide="layers" class="w-5 h-5 text-emerald-glow mb-3"></i>
       <p class="text-2xl lg:text-3xl font-bold mono" id="metric-staked">0</p>
-      <p class="text-xs text-slate-400 mt-1">Total Staked $PWR</p>
+      <p class="text-xs text-slate-400 mt-1" data-i18n="index.metrics.totalStaked">Total Staked $PWR</p>
     </div>
     <div class="glass glass-border-glow rounded-2xl p-5 lg:p-6 relative overflow-hidden">
       <i data-lucide="banknote" class="w-5 h-5 text-cyan-glow mb-3"></i>
       <p class="text-2xl lg:text-3xl font-bold mono" id="metric-tvl">$0</p>
-      <p class="text-xs text-slate-400 mt-1">Total Value Locked</p>
+      <p class="text-xs text-slate-400 mt-1" data-i18n="index.metrics.tvl">Total Value Locked</p>
     </div>
   </div>
   <p id="metrics-source-note" class="text-center text-[11px] text-slate-500 mt-4 mono"></p>
@@ -184,21 +221,21 @@
   <div class="glass glass-border-glow rounded-3xl p-6 lg:p-10">
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
       <div>
-        <h2 class="text-2xl lg:text-3xl font-bold mb-1">Ecosystem Funding Milestone</h2>
-        <p class="text-slate-400 text-sm">Public presale &amp; ecosystem grants pool — <span id="presale-phase-label">Phase 1</span></p>
+        <h2 class="text-2xl lg:text-3xl font-bold mb-1" data-i18n="index.presale.title">Ecosystem Funding Milestone</h2>
+        <p class="text-slate-400 text-sm"><span data-i18n="index.presale.subtitle">Public presale &amp; ecosystem grants pool —</span> <span id="presale-phase-label">Phase 1</span></p>
       </div>
       <div class="flex items-center gap-3 glass rounded-xl px-4 py-3">
         <i data-lucide="timer" class="w-5 h-5 text-emerald-glow"></i>
         <div>
-          <p class="text-xs text-slate-400">Next Price Phase In</p>
+          <p class="text-xs text-slate-400" data-i18n="index.presale.nextPhaseIn">Next Price Phase In</p>
           <p id="countdown" class="mono font-semibold text-lg text-gradient">00:00:00:00</p>
         </div>
       </div>
     </div>
 
     <div class="flex items-end justify-between mb-2">
-      <span class="mono text-sm text-slate-400">Raised: <span class="text-emerald-glow font-bold" id="raised-amount">$1,250,000</span></span>
-      <span class="mono text-sm text-slate-400">Goal: <span class="text-slate-200 font-semibold" id="goal-amount">$2,000,000</span></span>
+      <span class="mono text-sm text-slate-400"><span data-i18n="index.presale.raised">Raised:</span> <span class="text-emerald-glow font-bold" id="raised-amount">$1,250,000</span></span>
+      <span class="mono text-sm text-slate-400"><span data-i18n="index.presale.goal">Goal:</span> <span class="text-slate-200 font-semibold" id="goal-amount">$2,000,000</span></span>
     </div>
 
     <div class="w-full h-5 rounded-full bg-white/5 border border-white/10 overflow-hidden relative">
@@ -213,33 +250,33 @@
 
     <div class="grid grid-cols-3 mt-6 gap-3">
       <div class="text-center glass rounded-xl py-3">
-        <p class="text-xs text-slate-500">Current Price</p>
+        <p class="text-xs text-slate-500" data-i18n="index.presale.currentPrice">Current Price</p>
         <p class="mono font-bold text-emerald-glow" id="presale-current-price">$0.014</p>
       </div>
       <div class="text-center glass rounded-xl py-3">
-        <p class="text-xs text-slate-500">Next Phase Price</p>
+        <p class="text-xs text-slate-500" data-i18n="index.presale.nextPrice">Next Phase Price</p>
         <p class="mono font-bold text-cyan-glow" id="presale-next-price">$0.018</p>
       </div>
       <div class="text-center glass rounded-xl py-3">
-        <p class="text-xs text-slate-500">Contributors</p>
+        <p class="text-xs text-slate-500" data-i18n="index.presale.contributors">Contributors</p>
         <p class="mono font-bold text-slate-200" id="contributors">4,812</p>
       </div>
     </div>
 
     <div id="referral-banner" class="hidden mt-6 glass glass-border-glow rounded-xl px-4 py-3 flex items-center gap-2 text-xs">
       <i data-lucide="gift" class="w-4 h-4 text-emerald-glow shrink-0"></i>
-      <span class="text-slate-300">You were referred by <span class="mono text-emerald-glow" id="referral-banner-addr"></span> — you'll both get a bonus on this contribution.</span>
+      <span class="text-slate-300"><span data-i18n="index.presale.referredBy">You were referred by</span> <span class="mono text-emerald-glow" id="referral-banner-addr"></span> <span data-i18n="index.presale.referredBonus">— you'll both get a bonus on this contribution.</span></span>
     </div>
 
     <div class="mt-6 flex flex-col sm:flex-row gap-3">
       <div class="relative flex-1">
-        <input id="presale-eth-amount" type="number" min="0" step="0.001" placeholder="ETH amount to contribute" class="w-full glass rounded-xl px-4 py-3.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+        <input id="presale-eth-amount" type="number" min="0" step="0.001" data-i18n-placeholder="index.presale.ethPlaceholder" placeholder="ETH amount to contribute" class="w-full glass rounded-xl px-4 py-3.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
       </div>
       <button id="btn-contribute" class="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3.5 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition whitespace-nowrap">
-        Contribute to Presale
+        <span data-i18n="index.presale.contributeBtn">Contribute to Presale</span>
       </button>
       <button id="btn-claim-presale" class="rounded-xl glass glass-border-glow px-6 py-3.5 font-semibold text-slate-100 hover:shadow-glow-cyan transition whitespace-nowrap">
-        Claim My $PWR
+        <span data-i18n="index.presale.claimBtn">Claim My $PWR</span>
       </button>
     </div>
     <p id="presale-tx-status" class="text-xs mono text-slate-500 mt-3 break-all"></p>
@@ -249,32 +286,32 @@
 <!-- ================= YIELD CALCULATOR ================= -->
 <section id="calculator" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
   <div class="text-center max-w-2xl mx-auto mb-10">
-    <h2 class="text-3xl lg:text-4xl font-bold mb-3">AI GPU <span class="text-gradient">vs</span> Green Energy Yield Calculator</h2>
-    <p class="text-slate-400">Simulate how many H100/A100-class GPU nodes you'd operate and see your projected energy savings, carbon offset, and $PWR rewards.</p>
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3"><span data-i18n="index.calculator.title1">AI GPU</span> <span class="text-gradient" data-i18n="index.calculator.titleVs">vs</span> <span data-i18n="index.calculator.title2">Green Energy Yield Calculator</span></h2>
+    <p class="text-slate-400" data-i18n="index.calculator.subtitle">Simulate how many H100/A100-class GPU nodes you'd operate and see your projected energy savings, carbon offset, and $PWR rewards.</p>
   </div>
 
   <div class="grid lg:grid-cols-2 gap-6">
     <div class="glass glass-border-glow rounded-3xl p-6 lg:p-8">
       <div class="flex items-center justify-between mb-4">
-        <label for="gpu-slider" class="font-semibold flex items-center gap-2">
-          <i data-lucide="server" class="w-4 h-4 text-emerald-glow"></i> GPU Nodes (H100 / A100)
+        <label for="gpu-slider" class="font-semibold flex items-center gap-2 pc-flip-rtl">
+          <i data-lucide="server" class="w-4 h-4 text-emerald-glow"></i> <span data-i18n="index.calculator.gpuNodesLabel">GPU Nodes (H100 / A100)</span>
         </label>
         <span class="mono text-xl font-bold text-gradient" id="gpu-count-label">10</span>
       </div>
       <input type="range" id="gpu-slider" min="1" max="100" value="10" step="1" class="w-full" />
       <div class="flex justify-between text-xs text-slate-500 mt-2">
-        <span>1 node</span>
-        <span>100 nodes</span>
+        <span data-i18n="index.calculator.oneNode">1 node</span>
+        <span data-i18n="index.calculator.hundredNodes">100 nodes</span>
       </div>
 
       <div class="grid grid-cols-2 gap-4 mt-8">
         <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Avg. Grid Curtailment Price ($/MWh)</label>
+          <label class="text-xs text-slate-400 block mb-1.5" data-i18n="index.calculator.curtailmentPrice">Avg. Grid Curtailment Price ($/MWh)</label>
           <input id="curtailment-price" type="number" value="18" min="0" step="0.5"
             class="w-full glass rounded-lg px-3 py-2 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
         </div>
         <div>
-          <label class="text-xs text-slate-400 block mb-1.5">Compute Market Rate ($/MWh eq.)</label>
+          <label class="text-xs text-slate-400 block mb-1.5" data-i18n="index.calculator.computeRate">Compute Market Rate ($/MWh eq.)</label>
           <input id="compute-price" type="number" value="145" min="0" step="1"
             class="w-full glass rounded-lg px-3 py-2 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
         </div>
@@ -283,10 +320,10 @@
       <div class="mt-8 flex items-start gap-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4">
         <i data-lucide="lightbulb" class="w-5 h-5 text-emerald-glow shrink-0 mt-0.5"></i>
         <p class="text-xs text-slate-400">
-          Estimates assume each H100/A100 node draws ~1.6 kW under sustained AI inference/training load,
+          <span data-i18n="index.calculator.disclaimer">Estimates assume each H100/A100 node draws ~1.6 kW under sustained AI inference/training load,
           sourced from stranded renewable capacity that would otherwise be curtailed. Figures are illustrative,
-          not financial guarantees. Register a real node and submit energy proofs on the
-          <a href="dashboard.html" class="text-emerald-glow underline">Node Dashboard</a> to earn actual $PWR.
+          not financial guarantees. Register a real node and submit energy proofs on the</span>
+          <a href="dashboard.html" class="text-emerald-glow underline" data-i18n="index.calculator.disclaimerLink">Node Dashboard</a> <span data-i18n="index.calculator.disclaimerEnd">to earn actual $PWR.</span>
         </p>
       </div>
     </div>
@@ -295,34 +332,34 @@
       <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col justify-between animate-float">
         <div class="flex items-center justify-between">
           <i data-lucide="battery" class="w-6 h-6 text-emerald-glow"></i>
-          <span class="text-xs text-slate-500">Daily</span>
+          <span class="text-xs text-slate-500" data-i18n="index.calculator.daily">Daily</span>
         </div>
         <p class="text-3xl font-bold mono mt-4" id="calc-energy-savings">0</p>
-        <p class="text-xs text-slate-400 mt-1">Energy Savings (kWh/day)</p>
+        <p class="text-xs text-slate-400 mt-1" data-i18n="index.calculator.energySavings">Energy Savings (kWh/day)</p>
       </div>
       <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col justify-between animate-float" style="animation-delay:0.4s">
         <div class="flex items-center justify-between">
           <i data-lucide="leaf" class="w-6 h-6 text-cyan-glow"></i>
-          <span class="text-xs text-slate-500">Monthly</span>
+          <span class="text-xs text-slate-500" data-i18n="index.calculator.monthly">Monthly</span>
         </div>
         <p class="text-3xl font-bold mono mt-4" id="calc-carbon-offset">0</p>
-        <p class="text-xs text-slate-400 mt-1">Carbon Offset (Tons CO₂)</p>
+        <p class="text-xs text-slate-400 mt-1" data-i18n="index.calculator.carbonOffset">Carbon Offset (Tons CO₂)</p>
       </div>
       <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col justify-between animate-float" style="animation-delay:0.8s">
         <div class="flex items-center justify-between">
           <i data-lucide="coins" class="w-6 h-6 text-emerald-glow"></i>
-          <span class="text-xs text-slate-500">Daily</span>
+          <span class="text-xs text-slate-500" data-i18n="index.calculator.daily">Daily</span>
         </div>
         <p class="text-3xl font-bold mono mt-4" id="calc-pwr-rewards">0</p>
-        <p class="text-xs text-slate-400 mt-1">$PWR Rewards Earned</p>
+        <p class="text-xs text-slate-400 mt-1" data-i18n="index.calculator.pwrRewards">$PWR Rewards Earned</p>
       </div>
       <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col justify-between animate-float" style="animation-delay:1.2s">
         <div class="flex items-center justify-between">
           <i data-lucide="trending-up" class="w-6 h-6 text-cyan-glow"></i>
-          <span class="text-xs text-slate-500">Monthly</span>
+          <span class="text-xs text-slate-500" data-i18n="index.calculator.monthly">Monthly</span>
         </div>
         <p class="text-3xl font-bold mono mt-4" id="calc-net-revenue">$0</p>
-        <p class="text-xs text-slate-400 mt-1">Est. Net Revenue (USD)</p>
+        <p class="text-xs text-slate-400 mt-1" data-i18n="index.calculator.netRevenue">Est. Net Revenue (USD)</p>
       </div>
     </div>
   </div>
@@ -333,12 +370,12 @@
   <div class="glass glass-border-glow rounded-3xl p-6 lg:p-8">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
       <div>
-        <h2 class="text-2xl lg:text-3xl font-bold mb-1">Real-Time Grid Curtailment vs AI Compute Demand</h2>
-        <p class="text-slate-400 text-sm">Live simulated telemetry from PowerCompute orchestration nodes</p>
+        <h2 class="text-2xl lg:text-3xl font-bold mb-1" data-i18n="index.chart.title">Real-Time Grid Curtailment vs AI Compute Demand</h2>
+        <p class="text-slate-400 text-sm" data-i18n="index.chart.subtitle">Live simulated telemetry from PowerCompute orchestration nodes</p>
       </div>
       <div class="flex items-center gap-4">
-        <span class="flex items-center gap-1.5 text-xs text-slate-400"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 chip-dot text-emerald-400"></span>Curtailed Energy</span>
-        <span class="flex items-center gap-1.5 text-xs text-slate-400"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 chip-dot text-cyan-400"></span>Compute Demand</span>
+        <span class="flex items-center gap-1.5 text-xs text-slate-400 pc-flip-rtl"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 chip-dot text-emerald-400"></span><span data-i18n="index.chart.curtailedEnergy">Curtailed Energy</span></span>
+        <span class="flex items-center gap-1.5 text-xs text-slate-400 pc-flip-rtl"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 chip-dot text-cyan-400"></span><span data-i18n="index.chart.computeDemand">Compute Demand</span></span>
       </div>
     </div>
     <div class="relative h-[320px] lg:h-[380px]">
@@ -350,15 +387,15 @@
 <!-- ================= STAKING & UTILITY PORTAL ================= -->
 <section id="staking" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
   <div class="text-center max-w-2xl mx-auto mb-10">
-    <h2 class="text-3xl lg:text-4xl font-bold mb-3">Staking &amp; Utility Portal</h2>
-    <p class="text-slate-400">Connect your wallet to view live balances and stake $PWR to earn a share of protocol emissions.</p>
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3" data-i18n="index.staking.title">Staking &amp; Utility Portal</h2>
+    <p class="text-slate-400" data-i18n="index.staking.subtitle">Connect your wallet to view live balances and stake $PWR to earn a share of protocol emissions.</p>
   </div>
 
   <div class="grid lg:grid-cols-3 gap-6">
     <!-- Wallet balances -->
     <div class="glass glass-border-glow rounded-3xl p-6 lg:col-span-1">
       <h3 class="font-semibold flex items-center gap-2 mb-6">
-        <i data-lucide="wallet" class="w-5 h-5 text-emerald-glow"></i> Wallet Overview
+        <i data-lucide="wallet" class="w-5 h-5 text-emerald-glow"></i> <span data-i18n="index.staking.walletOverview">Wallet Overview</span>
       </h3>
       <div class="space-y-4">
         <div class="glass rounded-xl p-4 flex items-center justify-between">
@@ -367,7 +404,7 @@
               <i data-lucide="zap" class="w-4 h-4 text-charcoal"></i>
             </div>
             <div>
-              <p class="text-xs text-slate-400">$PWR Balance</p>
+              <p class="text-xs text-slate-400" data-i18n="index.staking.pwrBalance">$PWR Balance</p>
               <p class="mono font-bold" id="pwr-balance">--</p>
             </div>
           </div>
@@ -378,7 +415,7 @@
               <i data-lucide="diamond" class="w-4 h-4 text-white"></i>
             </div>
             <div>
-              <p class="text-xs text-slate-400">ETH Balance (Base Sepolia)</p>
+              <p class="text-xs text-slate-400" data-i18n="index.staking.ethBalance">ETH Balance (Base Sepolia)</p>
               <p class="mono font-bold" id="eth-balance">--</p>
             </div>
           </div>
@@ -389,7 +426,7 @@
               <i data-lucide="lock" class="w-4 h-4 text-charcoal"></i>
             </div>
             <div>
-              <p class="text-xs text-slate-400">Currently Staked</p>
+              <p class="text-xs text-slate-400" data-i18n="index.staking.currentlyStaked">Currently Staked</p>
               <p class="mono font-bold" id="staked-balance">--</p>
             </div>
           </div>
@@ -400,65 +437,65 @@
               <i data-lucide="gift" class="w-4 h-4 text-charcoal"></i>
             </div>
             <div>
-              <p class="text-xs text-slate-400">Pending Rewards</p>
+              <p class="text-xs text-slate-400" data-i18n="index.staking.pendingRewards">Pending Rewards</p>
               <p class="mono font-bold" id="pending-rewards">--</p>
             </div>
           </div>
         </div>
       </div>
       <p class="text-[11px] text-slate-500 mt-5 leading-relaxed">
-        Connect a wallet on <span class="text-emerald-glow">Base Sepolia</span> to read live on-chain balances via the
-        deployed $PWR contract. Update the 3 contract addresses in <span class="mono">assets/js/config.js</span> once deployed.
+        <span data-i18n="index.staking.notePre">Connect a wallet on</span> <span class="text-emerald-glow">Base Sepolia</span> <span data-i18n="index.staking.noteMid">to read live on-chain balances via the
+        deployed $PWR contract. Update the 3 contract addresses in</span> <span class="mono">assets/js/config.js</span> <span data-i18n="index.staking.notePost">once deployed.</span>
       </p>
     </div>
 
     <!-- Stake / Unstake -->
     <div class="glass glass-border-glow rounded-3xl p-6 lg:col-span-2">
       <div class="flex items-center gap-2 mb-6 glass rounded-full p-1 w-fit">
-        <button id="tab-stake" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 text-charcoal">Stake</button>
-        <button id="tab-unstake" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold text-slate-300">Unstake</button>
+        <button id="tab-stake" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 text-charcoal" data-i18n="index.staking.tabStake">Stake</button>
+        <button id="tab-unstake" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold text-slate-300" data-i18n="index.staking.tabUnstake">Unstake</button>
       </div>
 
       <div id="panel-stake">
-        <label class="text-xs text-slate-400 block mb-2">Amount to Stake</label>
+        <label class="text-xs text-slate-400 block mb-2" data-i18n="index.staking.amountToStake">Amount to Stake</label>
         <div class="flex gap-3">
           <div class="relative flex-1">
             <input id="stake-amount" type="number" min="0" placeholder="0.0" class="w-full glass rounded-xl px-4 py-3.5 text-lg mono outline-none focus:border-emerald-glow border border-white/10" />
             <button id="stake-max" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-glow bg-emerald-500/10 rounded-md px-2 py-1">MAX</button>
           </div>
           <button id="btn-stake" class="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition whitespace-nowrap">
-            Stake $PWR
+            <span data-i18n="index.staking.stakeBtn">Stake $PWR</span>
           </button>
         </div>
         <div class="grid grid-cols-3 gap-3 mt-4">
           <div class="glass rounded-lg py-2 text-center">
-            <p class="text-[10px] text-slate-500">APR (est.)</p>
+            <p class="text-[10px] text-slate-500" data-i18n="index.staking.apr">APR (est.)</p>
             <p class="mono font-bold text-emerald-glow text-sm" id="apr-estimate">18.4%</p>
           </div>
           <div class="glass rounded-lg py-2 text-center">
-            <p class="text-[10px] text-slate-500">Lock-up</p>
-            <p class="mono font-bold text-sm" id="lockup-label">None</p>
+            <p class="text-[10px] text-slate-500" data-i18n="index.staking.lockup">Lock-up</p>
+            <p class="mono font-bold text-sm" id="lockup-label" data-i18n="index.staking.lockupNone">None</p>
           </div>
           <div class="glass rounded-lg py-2 text-center">
-            <p class="text-[10px] text-slate-500">Reward Token</p>
+            <p class="text-[10px] text-slate-500" data-i18n="index.staking.rewardToken">Reward Token</p>
             <p class="mono font-bold text-sm">$PWR</p>
           </div>
         </div>
       </div>
 
       <div id="panel-unstake" class="hidden">
-        <label class="text-xs text-slate-400 block mb-2">Amount to Unstake</label>
+        <label class="text-xs text-slate-400 block mb-2" data-i18n="index.staking.amountToUnstake">Amount to Unstake</label>
         <div class="flex gap-3">
           <div class="relative flex-1">
             <input id="unstake-amount" type="number" min="0" placeholder="0.0" class="w-full glass rounded-xl px-4 py-3.5 text-lg mono outline-none focus:border-cyan-glow border border-white/10" />
             <button id="unstake-max" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-cyan-glow bg-cyan-500/10 rounded-md px-2 py-1">MAX</button>
           </div>
           <button id="btn-unstake" class="rounded-xl glass glass-border-glow px-6 font-semibold text-slate-100 hover:shadow-glow-cyan transition whitespace-nowrap">
-            Unstake $PWR
+            <span data-i18n="index.staking.unstakeBtn">Unstake $PWR</span>
           </button>
         </div>
         <button id="btn-claim" class="mt-4 w-full rounded-xl glass glass-border-glow px-6 py-3 font-semibold text-slate-100 hover:shadow-glow-emerald transition flex items-center justify-center gap-2">
-          <i data-lucide="gift" class="w-4 h-4 text-emerald-glow"></i> Claim Pending Rewards
+          <i data-lucide="gift" class="w-4 h-4 text-emerald-glow"></i> <span data-i18n="index.staking.claimRewardsBtn">Claim Pending Rewards</span>
         </button>
       </div>
 
@@ -470,8 +507,8 @@
 <!-- ================= HOW IT WORKS ================= -->
 <section class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
   <div class="text-center max-w-2xl mx-auto mb-10">
-    <h2 class="text-3xl lg:text-4xl font-bold mb-3">How It Works</h2>
-    <p class="text-slate-400">Three verifiable steps turn wasted electrons into decentralized AI compute.</p>
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3" data-i18n="index.howItWorks.title">How It Works</h2>
+    <p class="text-slate-400" data-i18n="index.howItWorks.subtitle">Three verifiable steps turn wasted electrons into decentralized AI compute.</p>
   </div>
   <div class="grid md:grid-cols-3 gap-6">
     <div class="glass glass-border-glow rounded-3xl p-7 relative">
@@ -479,24 +516,24 @@
       <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mt-4 mb-5">
         <i data-lucide="wind" class="w-6 h-6 text-emerald-glow"></i>
       </div>
-      <h3 class="font-bold text-lg mb-2">Grid Curtailment Detection</h3>
-      <p class="text-sm text-slate-400">Oracle-fed sensors identify stranded/curtailed renewable energy at wind &amp; solar sites in real time, before it's wasted or throttled by the grid.</p>
+      <h3 class="font-bold text-lg mb-2" data-i18n="index.howItWorks.step1Title">Grid Curtailment Detection</h3>
+      <p class="text-sm text-slate-400" data-i18n="index.howItWorks.step1Body">Oracle-fed sensors identify stranded/curtailed renewable energy at wind &amp; solar sites in real time, before it's wasted or throttled by the grid.</p>
     </div>
     <div class="glass glass-border-glow rounded-3xl p-7 relative">
       <span class="mono text-xs text-cyan-glow">STEP 02</span>
       <div class="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mt-4 mb-5">
         <i data-lucide="shield-check" class="w-6 h-6 text-cyan-glow"></i>
       </div>
-      <h3 class="font-bold text-lg mb-2">Node Verification (PoEC)</h3>
-      <p class="text-sm text-slate-400">GPU node operators register on the <a href="dashboard.html" class="text-cyan-glow underline">Node Dashboard</a> and submit Proof-of-Energy-Consumption reports, verified on-chain by protocol oracles via <span class="mono">NodeRegistry.sol</span>.</p>
+      <h3 class="font-bold text-lg mb-2" data-i18n="index.howItWorks.step2Title">Node Verification (PoEC)</h3>
+      <p class="text-sm text-slate-400"><span data-i18n="index.howItWorks.step2Body1">GPU node operators register on the</span> <a href="dashboard.html" class="text-cyan-glow underline" data-i18n="index.howItWorks.step2Link">Node Dashboard</a> <span data-i18n="index.howItWorks.step2Body2">and submit Proof-of-Energy-Consumption reports, verified on-chain by protocol oracles via</span> <span class="mono">NodeRegistry.sol</span>.</p>
     </div>
     <div class="glass glass-border-glow rounded-3xl p-7 relative">
       <span class="mono text-xs text-emerald-glow">STEP 03</span>
       <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mt-4 mb-5">
         <i data-lucide="brain-circuit" class="w-6 h-6 text-emerald-glow"></i>
       </div>
-      <h3 class="font-bold text-lg mb-2">AI Compute Orchestration</h3>
-      <p class="text-sm text-slate-400">Verified green capacity is routed to AI training/inference jobs via the PowerCompute marketplace, and operators are rewarded in $PWR minted directly to their wallet.</p>
+      <h3 class="font-bold text-lg mb-2" data-i18n="index.howItWorks.step3Title">AI Compute Orchestration</h3>
+      <p class="text-sm text-slate-400" data-i18n="index.howItWorks.step3Body">Verified green capacity is routed to AI training/inference jobs via the PowerCompute marketplace, and operators are rewarded in $PWR minted directly to their wallet.</p>
     </div>
   </div>
 </section>
@@ -504,8 +541,8 @@
 <!-- ================= ROADMAP ================= -->
 <section id="roadmap" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
   <div class="text-center max-w-2xl mx-auto mb-10">
-    <h2 class="text-3xl lg:text-4xl font-bold mb-3">Protocol Roadmap</h2>
-    <p class="text-slate-400">From testnet validation to full Virtual Power Plant (VPP) expansion.</p>
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3" data-i18n="index.roadmap.title">Protocol Roadmap</h2>
+    <p class="text-slate-400" data-i18n="index.roadmap.subtitle">From testnet validation to full Virtual Power Plant (VPP) expansion.</p>
   </div>
 
   <div class="max-w-3xl mx-auto space-y-4" id="roadmap-accordion">
@@ -514,16 +551,16 @@
       <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left">
         <div class="flex items-center gap-4">
           <span class="mono text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-glow font-bold">Q1</span>
-          <span class="font-semibold">Testnet Launch &amp; Node Onboarding</span>
+          <span class="font-semibold" data-i18n="index.roadmap.q1Title">Testnet Launch &amp; Node Onboarding</span>
         </div>
         <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
       </button>
       <div class="accordion-content px-5">
         <ul class="text-sm text-slate-400 space-y-2 pb-5 list-disc pl-4">
-          <li>Deploy $PWR token, NodeRegistry &amp; presale contracts to Base Sepolia testnet</li>
-          <li>Onboard first 250 pilot GPU nodes across 3 renewable energy sites via the Node Dashboard</li>
-          <li>Launch Proof-of-Energy-Consumption (PoEC) oracle network v1</li>
-          <li>Public bug bounty and third-party smart contract audit</li>
+          <li data-i18n="index.roadmap.q1Item1">Deploy $PWR token, NodeRegistry &amp; presale contracts to Base Sepolia testnet</li>
+          <li data-i18n="index.roadmap.q1Item2">Onboard first 250 pilot GPU nodes across 3 renewable energy sites via the Node Dashboard</li>
+          <li data-i18n="index.roadmap.q1Item3">Launch Proof-of-Energy-Consumption (PoEC) oracle network v1</li>
+          <li data-i18n="index.roadmap.q1Item4">Public bug bounty and third-party smart contract audit</li>
         </ul>
       </div>
     </div>
@@ -532,16 +569,16 @@
       <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left">
         <div class="flex items-center gap-4">
           <span class="mono text-xs px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-glow font-bold">Q2</span>
-          <span class="font-semibold">Token Generation Event (TGE) &amp; Mainnet</span>
+          <span class="font-semibold" data-i18n="index.roadmap.q2Title">Token Generation Event (TGE) &amp; Mainnet</span>
         </div>
         <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
       </button>
       <div class="accordion-content px-5">
         <ul class="text-sm text-slate-400 space-y-2 pb-5 list-disc pl-4">
-          <li>$PWR Token Generation Event with DEX &amp; CEX liquidity pairing</li>
-          <li>Mainnet deployment on Base with cross-chain bridge to Ethereum L1</li>
-          <li>Governance module activation — $PWR holders vote on emission rates</li>
-          <li>Institutional GPU-operator onboarding program (500+ nodes target)</li>
+          <li data-i18n="index.roadmap.q2Item1">$PWR Token Generation Event with DEX &amp; CEX liquidity pairing</li>
+          <li data-i18n="index.roadmap.q2Item2">Mainnet deployment on Base with cross-chain bridge to Ethereum L1</li>
+          <li data-i18n="index.roadmap.q2Item3">Governance module activation — $PWR holders vote on emission rates</li>
+          <li data-i18n="index.roadmap.q2Item4">Institutional GPU-operator onboarding program (500+ nodes target)</li>
         </ul>
       </div>
     </div>
@@ -550,16 +587,16 @@
       <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left">
         <div class="flex items-center gap-4">
           <span class="mono text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-glow font-bold">Q3</span>
-          <span class="font-semibold">Virtual Power Plant (VPP) Expansion</span>
+          <span class="font-semibold" data-i18n="index.roadmap.q3Title">Virtual Power Plant (VPP) Expansion</span>
         </div>
         <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
       </button>
       <div class="accordion-content px-5">
         <ul class="text-sm text-slate-400 space-y-2 pb-5 list-disc pl-4">
-          <li>Aggregate distributed nodes into a decentralized Virtual Power Plant</li>
-          <li>Grid demand-response contracts with regional utility partners</li>
-          <li>AI compute marketplace v2 — spot &amp; futures pricing for GPU-hours</li>
-          <li>Expansion into 10+ new renewable energy corridors globally</li>
+          <li data-i18n="index.roadmap.q3Item1">Aggregate distributed nodes into a decentralized Virtual Power Plant</li>
+          <li data-i18n="index.roadmap.q3Item2">Grid demand-response contracts with regional utility partners</li>
+          <li data-i18n="index.roadmap.q3Item3">AI compute marketplace v2 — spot &amp; futures pricing for GPU-hours</li>
+          <li data-i18n="index.roadmap.q3Item4">Expansion into 10+ new renewable energy corridors globally</li>
         </ul>
       </div>
     </div>
@@ -568,16 +605,16 @@
       <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left">
         <div class="flex items-center gap-4">
           <span class="mono text-xs px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-glow font-bold">Q4</span>
-          <span class="font-semibold">Full Decentralization &amp; DAO Handover</span>
+          <span class="font-semibold" data-i18n="index.roadmap.q4Title">Full Decentralization &amp; DAO Handover</span>
         </div>
         <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
       </button>
       <div class="accordion-content px-5">
         <ul class="text-sm text-slate-400 space-y-2 pb-5 list-disc pl-4">
-          <li>Protocol treasury &amp; emissions fully governed by PowerCompute DAO</li>
-          <li>Ownership renouncement of core contracts post-final audit</li>
-          <li>Open-source release of the full orchestration &amp; oracle stack</li>
-          <li>Long-term $PWR buyback-and-stake program funded by protocol revenue</li>
+          <li data-i18n="index.roadmap.q4Item1">Protocol treasury &amp; emissions fully governed by PowerCompute DAO</li>
+          <li data-i18n="index.roadmap.q4Item2">Ownership renouncement of core contracts post-final audit</li>
+          <li data-i18n="index.roadmap.q4Item3">Open-source release of the full orchestration &amp; oracle stack</li>
+          <li data-i18n="index.roadmap.q4Item4">Long-term $PWR buyback-and-stake program funded by protocol revenue</li>
         </ul>
       </div>
     </div>
@@ -588,8 +625,8 @@
 <!-- ================= TOKENOMICS ================= -->
 <section id="tokenomics" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
   <div class="text-center max-w-2xl mx-auto mb-10">
-    <h2 class="text-3xl lg:text-4xl font-bold mb-3">Tokenomics Breakdown</h2>
-    <p class="text-slate-400">Fixed max supply of <span class="text-emerald-glow font-semibold">1,000,000,000 $PWR</span> — no unbounded inflation.</p>
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3" data-i18n="index.tokenomics.title">Tokenomics Breakdown</h2>
+    <p class="text-slate-400"><span data-i18n="index.tokenomics.subtitlePre">Fixed max supply of</span> <span class="text-emerald-glow font-semibold">1,000,000,000 $PWR</span> <span data-i18n="index.tokenomics.subtitlePost">— no unbounded inflation.</span></p>
   </div>
 
   <div class="grid lg:grid-cols-2 gap-8 items-center">
@@ -605,35 +642,35 @@
         <div class="flex items-center gap-2">
           <span class="w-3 h-3 rounded-full bg-emerald-500 shrink-0"></span>
           <div>
-            <p class="text-sm font-semibold">Node Rewards</p>
+            <p class="text-sm font-semibold" data-i18n="index.tokenomics.nodeRewards">Node Rewards</p>
             <p class="text-xs text-slate-500">30%</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
           <span class="w-3 h-3 rounded-full bg-cyan-500 shrink-0"></span>
           <div>
-            <p class="text-sm font-semibold">Staking Pool</p>
+            <p class="text-sm font-semibold" data-i18n="index.tokenomics.stakingPool">Staking Pool</p>
             <p class="text-xs text-slate-500">25%</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
           <span class="w-3 h-3 rounded-full bg-emerald-300 shrink-0"></span>
           <div>
-            <p class="text-sm font-semibold">Ecosystem &amp; Grants</p>
+            <p class="text-sm font-semibold" data-i18n="index.tokenomics.ecosystemGrants">Ecosystem &amp; Grants</p>
             <p class="text-xs text-slate-500">20%</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
           <span class="w-3 h-3 rounded-full bg-cyan-300 shrink-0"></span>
           <div>
-            <p class="text-sm font-semibold">Team &amp; Advisors</p>
+            <p class="text-sm font-semibold" data-i18n="index.tokenomics.teamAdvisors">Team &amp; Advisors</p>
             <p class="text-xs text-slate-500">15%</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
           <span class="w-3 h-3 rounded-full bg-slate-500 shrink-0"></span>
           <div>
-            <p class="text-sm font-semibold">Liquidity &amp; CEX</p>
+            <p class="text-sm font-semibold" data-i18n="index.tokenomics.liquidityCex">Liquidity &amp; CEX</p>
             <p class="text-xs text-slate-500">10%</p>
           </div>
         </div>
@@ -642,20 +679,20 @@
 
     <div class="space-y-4">
       <div class="glass glass-border-glow rounded-2xl p-5 flex items-center justify-between">
-        <span class="text-sm text-slate-400">Max Supply</span>
+        <span class="text-sm text-slate-400" data-i18n="index.tokenomics.maxSupply">Max Supply</span>
         <span class="mono font-bold" id="tokenomics-max-supply">1,000,000,000 $PWR</span>
       </div>
       <div class="glass glass-border-glow rounded-2xl p-5 flex items-center justify-between">
-        <span class="text-sm text-slate-400">Circulating Supply</span>
+        <span class="text-sm text-slate-400" data-i18n="index.tokenomics.circulatingSupply">Circulating Supply</span>
         <span class="mono font-bold" id="tokenomics-circulating">200,000,000 $PWR</span>
       </div>
       <div class="glass glass-border-glow rounded-2xl p-5 flex items-center justify-between">
-        <span class="text-sm text-slate-400">Network</span>
-        <span class="mono font-bold">Base (Sepolia Testnet)</span>
+        <span class="text-sm text-slate-400" data-i18n="index.tokenomics.network">Network</span>
+        <span class="mono font-bold" data-i18n="index.tokenomics.networkValue">Base (Sepolia Testnet)</span>
       </div>
       <div class="glass glass-border-glow rounded-2xl p-5 flex items-center justify-between">
-        <span class="text-sm text-slate-400">Team Vesting</span>
-        <span class="mono font-bold">24-month linear, 6-month cliff</span>
+        <span class="text-sm text-slate-400" data-i18n="index.tokenomics.teamVesting">Team Vesting</span>
+        <span class="mono font-bold" data-i18n="index.tokenomics.teamVestingValue">24-month linear, 6-month cliff</span>
       </div>
     </div>
   </div>
@@ -664,12 +701,12 @@
 <!-- ================= NEWS / ANNOUNCEMENTS ================= -->
 <section id="news" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
   <div class="text-center max-w-2xl mx-auto mb-10">
-    <h2 class="text-3xl lg:text-4xl font-bold mb-3">Protocol News &amp; Announcements</h2>
-    <p class="text-slate-400">Published directly on-chain by the PowerCompute team — no server, no database, fully verifiable.</p>
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3" data-i18n="index.news.title">Protocol News &amp; Announcements</h2>
+    <p class="text-slate-400" data-i18n="index.news.subtitle">Published directly on-chain by the PowerCompute team — no server, no database, fully verifiable.</p>
   </div>
 
   <div id="news-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-    <div class="glass glass-border-glow rounded-2xl p-6 col-span-full text-center text-slate-500 text-sm py-10">
+    <div class="glass glass-border-glow rounded-2xl p-6 col-span-full text-center text-slate-500 text-sm py-10" data-i18n="index.news.loading">
       Loading announcements...
     </div>
   </div>
@@ -685,7 +722,7 @@
         </span>
         <span>Power<span class="text-gradient">Compute</span></span>
       </a>
-      <p class="text-sm text-slate-500 max-w-md leading-relaxed">
+      <p class="text-sm text-slate-500 max-w-md leading-relaxed" data-i18n="index.footer.description">
         PowerCompute is a decentralized physical infrastructure network (DePIN) protocol that
         matches stranded renewable energy with verified AI compute demand. $PWR is a utility and
         governance token; it is not an investment contract or security. Nothing on this site
@@ -693,33 +730,33 @@
       </p>
       <div class="flex items-center gap-2 mt-5 glass glass-border-glow rounded-full px-4 py-2 w-fit">
         <i data-lucide="badge-check" class="w-4 h-4 text-emerald-glow"></i>
-        <span class="text-xs mono text-slate-300">Token: <span id="footer-token-addr" class="text-emerald-glow">Not deployed</span></span>
+        <span class="text-xs mono text-slate-300"><span data-i18n="index.footer.tokenLabel">Token:</span> <span id="footer-token-addr" class="text-emerald-glow" data-i18n="index.footer.notDeployed">Not deployed</span></span>
       </div>
     </div>
 
     <div>
-      <p class="font-semibold mb-4 text-sm">Ecosystem</p>
+      <p class="font-semibold mb-4 text-sm" data-i18n="common.footer.ecosystem">Ecosystem</p>
       <div class="space-y-3 text-sm text-slate-400">
-        <a href="dashboard.html" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="server" class="w-4 h-4"></i> Node Dashboard</a>
-        <a href="#news" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="newspaper" class="w-4 h-4"></i> News</a>
-        <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="twitter" class="w-4 h-4"></i> X / Twitter</a>
-        <a href="https://discord.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="message-circle" class="w-4 h-4"></i> Discord</a>
+        <a href="dashboard.html" class="flex items-center gap-2 hover:text-emerald-glow transition pc-flip-rtl"><i data-lucide="server" class="w-4 h-4"></i> <span data-i18n="common.nav.nodeDashboard">Node Dashboard</span></a>
+        <a href="#news" class="flex items-center gap-2 hover:text-emerald-glow transition pc-flip-rtl"><i data-lucide="newspaper" class="w-4 h-4"></i> <span data-i18n="common.nav.news">News</span></a>
+        <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition pc-flip-rtl"><i data-lucide="twitter" class="w-4 h-4"></i> <span data-i18n="common.footer.twitter">X / Twitter</span></a>
+        <a href="https://discord.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition pc-flip-rtl"><i data-lucide="message-circle" class="w-4 h-4"></i> <span data-i18n="common.footer.discord">Discord</span></a>
       </div>
     </div>
 
     <div>
-      <p class="font-semibold mb-4 text-sm">Resources</p>
+      <p class="font-semibold mb-4 text-sm" data-i18n="common.footer.resources">Resources</p>
       <div class="space-y-3 text-sm text-slate-400">
-        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-cyan-glow transition"><i data-lucide="github" class="w-4 h-4"></i> GitHub</a>
-        <a href="README.md" class="flex items-center gap-2 hover:text-cyan-glow transition"><i data-lucide="book-open" class="w-4 h-4"></i> Documentation</a>
-        <a href="https://sepolia.basescan.org" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-cyan-glow transition"><i data-lucide="search-code" class="w-4 h-4"></i> BaseScan Explorer</a>
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-cyan-glow transition pc-flip-rtl"><i data-lucide="github" class="w-4 h-4"></i> <span data-i18n="common.footer.github">GitHub</span></a>
+        <a href="README.md" class="flex items-center gap-2 hover:text-cyan-glow transition pc-flip-rtl"><i data-lucide="book-open" class="w-4 h-4"></i> <span data-i18n="common.footer.documentation">Documentation</span></a>
+        <a href="https://sepolia.basescan.org" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-cyan-glow transition pc-flip-rtl"><i data-lucide="search-code" class="w-4 h-4"></i> <span data-i18n="common.footer.explorer">BaseScan Explorer</span></a>
       </div>
     </div>
   </div>
 
   <div class="max-w-7xl mx-auto border-t border-white/5 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-    <p class="text-xs text-slate-500">© 2026 PowerCompute Protocol. All rights reserved. · <a href="admin.html" class="hover:text-slate-400 transition">Owner Console</a></p>
-    <p class="text-xs text-slate-500 text-center sm:text-right max-w-xl">
+    <p class="text-xs text-slate-500"><span data-i18n="index.footer.copyrightLine">© 2026 PowerCompute Protocol. All rights reserved. ·</span> <a href="admin.html" class="hover:text-slate-400 transition" data-i18n="index.footer.ownerConsole">Owner Console</a></p>
+    <p class="text-xs text-slate-500 text-center sm:text-right max-w-xl" data-i18n="index.footer.testnetDisclaimer">
       $PWR is deployed on a public testnet for demonstration purposes. Testnet tokens hold no monetary value.
       Always verify contract addresses independently before interacting.
     </p>
@@ -729,6 +766,12 @@
 <!-- Shared config + wallet utilities -->
 <script src="./assets/js/config.js"></script>
 <script src="./assets/js/wallet.js"></script>
+<!-- 3D animated hero (energy/GPU/solar/wind/staking scene). Module scripts
+     are deferred by default, so this still runs after the above regardless
+     of tag order — kept last for readability. Fails gracefully to the
+     existing .pc-hero-3d-fallback gradient (see style.css) if WebGL is
+     unavailable or the user has prefers-reduced-motion enabled. -->
+<script type="module" src="./assets/js/hero3d.js"></script>
 
 <script>
 /* ==========================================================================
@@ -1319,8 +1362,10 @@ const DEMO_NEWS = [
 
 function renderNewsCards(items, isLive) {
   const grid = document.getElementById('news-grid');
+  const t = (key, fallback) => (window.pcT ? window.pcT(key, fallback) : fallback);
+
   if (items.length === 0) {
-    grid.innerHTML = `<div class="glass glass-border-glow rounded-2xl p-6 col-span-full text-center text-slate-500 text-sm py-10">No announcements published yet.</div>`;
+    grid.innerHTML = `<div class="glass glass-border-glow rounded-2xl p-6 col-span-full text-center text-slate-500 text-sm py-10">${t('index.news.empty', 'No announcements published yet.')}</div>`;
     return;
   }
 
@@ -1328,7 +1373,7 @@ function renderNewsCards(items, isLive) {
     const tagColor = post.tag === "Security" ? "pill-red" : post.tag === "Presale" ? "pill-cyan" : "pill-emerald";
     const dateLabel = new Date(Number(post.publishedAt) * 1000).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
     const linkHtml = post.externalUrl
-      ? `<a href="${post.externalUrl}" target="_blank" rel="noopener noreferrer" class="text-xs text-emerald-glow hover:underline mt-3 inline-flex items-center gap-1">Read more <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a>`
+      ? `<a href="${post.externalUrl}" target="_blank" rel="noopener noreferrer" class="text-xs text-emerald-glow hover:underline mt-3 inline-flex items-center gap-1 pc-flip-rtl">${t('index.news.readMore', 'Read more')} <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a>`
       : "";
     return `
       <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col">
@@ -1346,7 +1391,7 @@ function renderNewsCards(items, isLive) {
 
   if (!isLive) {
     const grid2 = document.getElementById('news-grid');
-    grid2.insertAdjacentHTML('afterbegin', `<div class="col-span-full text-center text-[11px] mono text-slate-500 mb-1">Showing illustrative demo announcements — deploy PowerComputeAnnouncements.sol and configure it to publish real, on-chain articles.</div>`);
+    grid2.insertAdjacentHTML('afterbegin', `<div class="col-span-full text-center text-[11px] mono text-slate-500 mb-1">${t('index.news.demoNote', 'Showing illustrative demo announcements — deploy PowerComputeAnnouncements.sol and configure it to publish real, on-chain articles.')}</div>`);
   }
 }
 

@@ -277,3 +277,220 @@ input[type="range"]::-moz-range-thumb {
   animation: shimmer 1.6s ease-in-out infinite;
   border-radius: 6px;
 }
+
+
+/* ==========================================================================
+   RTL SUPPORT (Arabic)
+   Activated via <html dir="rtl" class="rtl"> — set by assets/js/i18n.js.
+   Tailwind is loaded from the CDN in "just-in-time" mode with no RTL
+   plugin/variant available, so directional utility classes authored for
+   LTR (text-left, ml-*, mr-*, left-*, right-*, rounded-l-*, rounded-r-*,
+   border-l/r, etc.) do NOT automatically mirror. Rather than rewrite every
+   occurrence of those utilities across 5 HTML files with `ltr:`/`rtl:`
+   variants (unavailable on the CDN build), this block re-declares the
+   handful of directional PATTERNS actually used in this project's markup
+   as logical-property equivalents, scoped under html.rtl, so flipping
+   languages instantly mirrors layout without touching any HTML.
+   ========================================================================== */
+
+html.rtl {
+  direction: rtl;
+}
+
+html.rtl body {
+  text-align: right;
+}
+
+/* Generic text alignment utilities — Tailwind's text-left/text-right stay
+   physical (not logical) on the CDN build, so provide RTL-aware overrides
+   for the exact classes used across the project. */
+html.rtl .text-left { text-align: right; }
+html.rtl .text-right { text-align: left; }
+
+/* Margin/padding start-end swaps for the specific utility classes actually
+   used in this project's markup (ml-*, mr-*, pl-*, pr-*). Rather than
+   enumerate every Tailwind spacing scale value, target via attribute
+   selectors on the class string is not possible in plain CSS, so instead
+   the components below that truly need directional awareness use the
+   `.pc-flip-rtl` helper class (added to the relevant HTML elements) or the
+   component-specific rules further down this block. General-purpose prose
+   text (paragraphs, headings) reads correctly in RTL from `direction: rtl`
+   and `text-align: right` alone without per-utility overrides. */
+
+/* Flip icon-first horizontal layouts (icon + label rows, nav pills, list
+   items with a leading icon) so the icon still reads on the "leading"
+   side in RTL, i.e. the right, matching Arabic reading direction. */
+html.rtl .pc-flip-rtl {
+  flex-direction: row-reverse;
+}
+
+/* Nav underline animation (.nav-link::after) is anchored `left: 0` for
+   LTR growth left-to-right; mirror it to grow right-to-left in RTL so the
+   hover/active underline still originates from the reading-start edge. */
+html.rtl .nav-link::after {
+  left: auto;
+  right: 0;
+}
+
+/* Toasts, wallet picker, and account menu are positioned with `right-5`
+   (toast) or centered (modals) — the toast specifically should anchor to
+   the reading-start corner in RTL, which is visually the top-LEFT for
+   Arabic (top-right is where the eye starts reading, so alerts anchor
+   opposite the reading start to avoid covering text — kept on the same
+   visual corner as LTR intentionally here since it's a transient
+   notification, not body content: no override needed, matches common RTL
+   dApp/toast conventions of keeping system notifications corner-stable). */
+
+/* Chart.js canvases and Lucide icons are raster/vector graphics, not text
+   — they must NOT be mirrored (an icon of a wallet or a chart axis
+   reading left-to-right in time should stay left-to-right regardless of
+   page language). Explicitly exclude icons/canvases from any transform
+   mirroring that might be introduced by a blanket `transform: scaleX(-1)`
+   approach — which is why this file uses targeted logical-property rules
+   instead of a single global mirror rule. */
+html.rtl canvas,
+html.rtl [data-lucide] {
+  direction: ltr;
+}
+
+/* Dropdown/accordion chevrons that rotate on open (roadmap accordion,
+   language switcher) keep their rotation direction — no mirroring needed,
+   only re-declared here for clarity that this was a deliberate omission. */
+
+/* Number/address/hash monospace content (balances, tx hashes, wallet
+   addresses) must always render LTR even inside an RTL page — a hex
+   address or a "$1,250,000" figure reading right-to-left would be
+   unreadable/ambiguous. */
+html.rtl .mono {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Form inputs: numeric/address entry fields should type LTR even in an
+   RTL page for the same reason as .mono above. */
+html.rtl input[type="number"],
+html.rtl input.mono,
+html.rtl textarea.mono {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Arabic-aware font stack applied via inline style by i18n.js
+  (document.body.style.fontFamily) — this fallback class covers any
+  element that doesn't inherit body font-family due to a more specific
+  Tailwind utility class already setting font-family on it directly. */
+html.rtl .font-mono-safe {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ==========================================================================
+   LANGUAGE SWITCHER
+   Single toggle pill button — tapping it flips between EN and AR directly
+   (2-language toggle, no dropdown needed). Shown in the nav bar and
+   mobile menu on every page.
+   ========================================================================== */
+
+.pc-lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.05em;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10B981;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pc-lang-toggle:hover {
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+}
+
+/* ==========================================================================
+   3D HERO CANVAS (Three.js) — index.html only
+   The canvas sits behind the hero section's text content, fading/parallaxing
+   as the user scrolls past the hero. Falls back to the existing animated
+   grid background (already present as .bg-grid) if WebGL is unavailable
+   or the user has prefers-reduced-motion enabled — see assets/js/hero3d.js.
+   ========================================================================== */
+
+/* Wraps just the hero text/CTA block (not the whole hero section, which
+   also contains the metrics grid) so the absolutely-positioned canvas +
+   scrim size themselves to the hero copy rather than the full page. A
+   min-height guarantees the 3D scene has visible room to render even
+   when the hero copy is short (e.g. very wide desktop viewports where
+   the text wraps to fewer lines). */
+.pc-hero-3d-scope {
+  min-height: 420px;
+}
+
+@media (min-width: 1024px) {
+  .pc-hero-3d-scope {
+    min-height: 560px;
+  }
+}
+
+#pc-hero-3d-container {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#pc-hero-3d-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* The hero section's text/CTA content must sit above the 3D canvas and
+   remain fully readable regardless of what's rendering behind it — a
+   subtle vertical gradient scrim ensures contrast without hiding the
+   scene entirely. */
+.pc-hero-3d-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(9, 13, 22, 0.35) 0%,
+    rgba(9, 13, 22, 0.15) 35%,
+    rgba(9, 13, 22, 0.55) 100%
+  );
+}
+
+.pc-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+/* Reduced-motion / no-WebGL fallback: a static, non-animated version of
+   the emerald/cyan glow treatment already used elsewhere on the page, so
+   the hero never looks broken or empty for users who disable motion or
+   whose browser/device can't render WebGL. */
+.pc-hero-3d-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(16, 185, 129, 0.18), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(6, 182, 212, 0.16), transparent 55%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-grid-move,
+  .animate-pulse-slow,
+  .animate-float,
+  .animate-shimmer,
+  .animate-spin-slow {
+    animation: none !important;
+  }
+}
