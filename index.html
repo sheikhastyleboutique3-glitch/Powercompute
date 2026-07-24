@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PowerCompute ($PWR) — Decentralized Energy-to-Compute Orchestration Protocol</title>
+<meta name="description" content="PowerCompute ($PWR) routes stranded green energy into verified AI compute demand. Stake, calculate yield, and join the testnet." />
+
+<!-- Tailwind CSS (CDN, JIT) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<!-- Ethers.js v5 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          charcoal: '#090D16',
+          panel: '#0E1526',
+          emerald: {
+            glow: '#10B981'
+          },
+          cyan: {
+            glow: '#06B6D4'
+          }
+        },
+        fontFamily: {
+          sans: ['Space Grotesk', 'ui-sans-serif', 'system-ui'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+        },
+        boxShadow: {
+          'glow-emerald': '0 0 20px rgba(16,185,129,0.35), 0 0 60px rgba(16,185,129,0.08)',
+          'glow-cyan': '0 0 20px rgba(6,182,212,0.35), 0 0 60px rgba(6,182,212,0.08)'
+        },
+        animation: {
+          'grid-move': 'gridMove 30s linear infinite',
+          'pulse-slow': 'pulseSlow 3s ease-in-out infinite',
+          'float': 'float 6s ease-in-out infinite',
+          'shimmer': 'shimmer 2.5s linear infinite'
+        },
+        keyframes: {
+          gridMove: {
+            '0%': { backgroundPosition: '0 0' },
+            '100%': { backgroundPosition: '60px 60px' }
+          },
+          pulseSlow: {
+            '0%, 100%': { opacity: 1 },
+            '50%': { opacity: 0.5 }
+          },
+          float: {
+            '0%, 100%': { transform: 'translateY(0px)' },
+            '50%': { transform: 'translateY(-14px)' }
+          },
+          shimmer: {
+            '0%': { backgroundPosition: '-200% 0' },
+            '100%': { backgroundPosition: '200% 0' }
+          }
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  html { scroll-behavior: smooth; }
+  body {
+    background-color: #090D16;
+    color: #E5F2ED;
+    font-family: 'Space Grotesk', ui-sans-serif, system-ui;
+    overflow-x: hidden;
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(16,185,129,0.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(16,185,129,0.09) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .glass {
+    background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .glass-border-glow {
+    position: relative;
+  }
+  .glass-border-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(16,185,129,0.55), rgba(6,182,212,0.15), rgba(16,185,129,0.05));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  .text-gradient {
+    background: linear-gradient(90deg, #10B981, #06B6D4, #10B981);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 4s linear infinite;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.4); border-radius: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #10B981, #06B6D4);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #E5F2ED;
+    border: 3px solid #10B981;
+    box-shadow: 0 0 12px rgba(16,185,129,0.8);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #E5F2ED;
+    border: 3px solid #10B981;
+    box-shadow: 0 0 12px rgba(16,185,129,0.8);
+    cursor: pointer;
+  }
+  .accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .accordion-content.open {
+    max-height: 600px;
+  }
+  .chip-dot {
+    box-shadow: 0 0 8px currentColor;
+  }
+  .nav-link {
+    position: relative;
+  }
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: -4px;
+    width: 0%;
+    height: 1px;
+    background: linear-gradient(90deg,#10B981,#06B6D4);
+    transition: width 0.25s ease;
+  }
+  .nav-link:hover::after { width: 100%; }
+  ::selection { background: rgba(16,185,129,0.35); }
+</style>
+</head>
+
+<body class="bg-charcoal text-slate-200 antialiased">
+
+<!-- ================= ANIMATED GRID BACKDROP ================= -->
+<div class="fixed inset-0 -z-10 bg-charcoal">
+  <div class="absolute inset-0 bg-grid animate-grid-move opacity-60"></div>
+  <div class="absolute -top-40 -left-40 w-[36rem] h-[36rem] bg-emerald-500/20 rounded-full blur-[120px]"></div>
+  <div class="absolute top-1/3 -right-40 w-[36rem] h-[36rem] bg-cyan-500/15 rounded-full blur-[130px]"></div>
+  <div class="absolute bottom-0 left-1/4 w-[30rem] h-[30rem] bg-emerald-500/10 rounded-full blur-[140px]"></div>
+</div>
+
+<!-- ================= TOAST / ALERT ================= -->
+<div id="toast" class="fixed top-5 right-5 z-[100] hidden max-w-sm">
+  <div class="glass glass-border-glow rounded-xl px-4 py-3 shadow-glow-emerald flex items-start gap-3">
+    <i data-lucide="info" class="w-5 h-5 text-emerald-glow mt-0.5 shrink-0"></i>
+    <p id="toast-msg" class="text-sm text-slate-200"></p>
+  </div>
+</div>
+
+<!-- ================= NAVBAR ================= -->
+<header class="sticky top-0 z-50 border-b border-white/5 backdrop-blur-xl bg-charcoal/70">
+  <div class="max-w-7xl mx-auto px-5 lg:px-8 h-16 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2.5 font-bold text-lg">
+      <span class="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-glow-emerald">
+        <i data-lucide="zap" class="w-5 h-5 text-charcoal"></i>
+      </span>
+      <span>Power<span class="text-gradient">Compute</span></span>
+    </a>
+    <nav class="hidden md:flex items-center gap-8 text-sm text-slate-300">
+      <a href="#metrics" class="nav-link">Protocol</a>
+      <a href="#calculator" class="nav-link">Yield Calculator</a>
+      <a href="#chart" class="nav-link">Live Grid</a>
+      <a href="#staking" class="nav-link">Staking</a>
+      <a href="#roadmap" class="nav-link">Roadmap</a>
+      <a href="#tokenomics" class="nav-link">Tokenomics</a>
+    </nav>
+    <button id="connect-wallet-nav" class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+      <i data-lucide="wallet" class="w-4 h-4"></i>
+      <span id="wallet-label-nav">Connect Wallet</span>
+    </button>
+    <button id="mobile-menu-btn" class="md:hidden text-slate-300">
+      <i data-lucide="menu" class="w-6 h-6"></i>
+    </button>
+  </div>
+  <div id="mobile-menu" class="hidden md:hidden border-t border-white/5 bg-charcoal/95 px-5 py-4 space-y-3 text-sm">
+    <a href="#metrics" class="block text-slate-300">Protocol</a>
+    <a href="#calculator" class="block text-slate-300">Yield Calculator</a>
+    <a href="#chart" class="block text-slate-300">Live Grid</a>
+    <a href="#staking" class="block text-slate-300">Staking</a>
+    <a href="#roadmap" class="block text-slate-300">Roadmap</a>
+    <a href="#tokenomics" class="block text-slate-300">Tokenomics</a>
+    <button id="connect-wallet-mobile" class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
+      <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
+    </button>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section id="top" class="relative pt-16 lg:pt-24 pb-20 px-5 lg:px-8 max-w-7xl mx-auto">
+  <div class="flex flex-col items-center text-center gap-6">
+
+    <div class="glass glass-border-glow rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-mono text-emerald-glow animate-pulse-slow">
+      <span class="relative flex h-2 w-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+      </span>
+      Testnet Active — Base Sepolia
+    </div>
+
+    <h1 class="text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.08] max-w-4xl">
+      Powering Next-Gen <span class="text-gradient">AI</span> with
+      <span class="text-gradient">Stranded Green Energy</span>
+    </h1>
+
+    <p class="max-w-2xl text-base lg:text-lg text-slate-400">
+      PowerCompute is a decentralized orchestration layer that routes curtailed renewable
+      energy from wind &amp; solar farms directly into verified, on-demand GPU compute for AI
+      workloads — turning wasted electrons into intelligence, and rewarding operators in <span class="text-emerald-glow font-semibold">$PWR</span>.
+    </p>
+
+    <div class="flex flex-col sm:flex-row items-center gap-4 mt-2">
+      <button id="connect-wallet-hero" class="group flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-7 py-3.5 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 hover:scale-[1.02] active:scale-95 transition-all">
+        <i data-lucide="wallet" class="w-5 h-5"></i>
+        <span id="wallet-label-hero">Connect Wallet</span>
+        <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+      </button>
+      <a href="#roadmap" class="flex items-center gap-2 rounded-xl glass glass-border-glow px-7 py-3.5 font-semibold text-slate-200 hover:border-cyan-glow hover:shadow-glow-cyan transition-all">
+        <i data-lucide="compass" class="w-5 h-5 text-cyan-glow"></i>
+        Explore Ecosystem
+      </a>
+    </div>
+
+    <p id="wallet-status" class="text-xs mono text-slate-500 mt-1"></p>
+  </div>
+
+  <!-- Live protocol metrics row -->
+  <div id="metrics" class="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+    <div class="glass glass-border-glow rounded-2xl p-5 lg:p-6 relative overflow-hidden">
+      <i data-lucide="battery-charging" class="w-5 h-5 text-emerald-glow mb-3"></i>
+      <p class="text-2xl lg:text-3xl font-bold mono" id="metric-energy">0</p>
+      <p class="text-xs text-slate-400 mt-1">Total Energy Routed (MWh)</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5 lg:p-6 relative overflow-hidden">
+      <i data-lucide="cpu" class="w-5 h-5 text-cyan-glow mb-3"></i>
+      <p class="text-2xl lg:text-3xl font-bold mono" id="metric-gpus">0</p>
+      <p class="text-xs text-slate-400 mt-1">GPUs Active on Network</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5 lg:p-6 relative overflow-hidden">
+      <i data-lucide="layers" class="w-5 h-5 text-emerald-glow mb-3"></i>
+      <p class="text-2xl lg:text-3xl font-bold mono" id="metric-staked">0</p>
+      <p class="text-xs text-slate-400 mt-1">Total Staked $PWR</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5 lg:p-6 relative overflow-hidden">
+      <i data-lucide="banknote" class="w-5 h-5 text-cyan-glow mb-3"></i>
+      <p class="text-2xl lg:text-3xl font-bold mono" id="metric-tvl">$0</p>
+      <p class="text-xs text-slate-400 mt-1">Total Value Locked</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PRESALE / MILESTONE TRACKER ================= -->
+<section class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+  <div class="glass glass-border-glow rounded-3xl p-6 lg:p-10">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+      <div>
+        <h2 class="text-2xl lg:text-3xl font-bold mb-1">Ecosystem Funding Milestone</h2>
+        <p class="text-slate-400 text-sm">Public presale &amp; ecosystem grants pool — Phase 1</p>
+      </div>
+      <div class="flex items-center gap-3 glass rounded-xl px-4 py-3">
+        <i data-lucide="timer" class="w-5 h-5 text-emerald-glow"></i>
+        <div>
+          <p class="text-xs text-slate-400">Next Price Phase In</p>
+          <p id="countdown" class="mono font-semibold text-lg text-gradient">00:00:00:00</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-end justify-between mb-2">
+      <span class="mono text-sm text-slate-400">Raised: <span class="text-emerald-glow font-bold" id="raised-amount">$1,250,000</span></span>
+      <span class="mono text-sm text-slate-400">Goal: <span class="text-slate-200 font-semibold" id="goal-amount">$2,000,000</span></span>
+    </div>
+
+    <div class="w-full h-5 rounded-full bg-white/5 border border-white/10 overflow-hidden relative">
+      <div id="progress-bar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-400 relative transition-all duration-1000" style="width:0%">
+        <div class="absolute inset-0 opacity-40" style="background: repeating-linear-gradient(45deg, rgba(255,255,255,0.25) 0 8px, transparent 8px 16px);"></div>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-2">
+      <span class="text-xs text-slate-500">Phase 1 · Seed Nodes</span>
+      <span class="mono text-sm font-bold text-cyan-glow" id="progress-pct">0%</span>
+    </div>
+
+    <div class="grid grid-cols-3 mt-6 gap-3">
+      <div class="text-center glass rounded-xl py-3">
+        <p class="text-xs text-slate-500">Current Price</p>
+        <p class="mono font-bold text-emerald-glow">$0.014</p>
+      </div>
+      <div class="text-center glass rounded-xl py-3">
+        <p class="text-xs text-slate-500">Next Phase Price</p>
+        <p class="mono font-bold text-cyan-glow">$0.018</p>
+      </div>
+      <div class="text-center glass rounded-xl py-3">
+        <p class="text-xs text-slate-500">Contributors</p>
+        <p class="mono font-bold text-slate-200" id="contributors">4,812</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= YIELD CALCULATOR ================= -->
+<section id="calculator" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+  <div class="text-center max-w-2xl mx-auto mb-10">
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3">AI GPU <span class="text-gradient">vs</span> Green Energy Yield Calculator</h2>
+    <p class="text-slate-400">Simulate how many H100/A100-class GPU nodes you'd operate and see your projected energy savings, carbon offset, and $PWR rewards.</p>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-6">
+    <div class="glass glass-border-glow rounded-3xl p-6 lg:p-8">
+      <div class="flex items-center justify-between mb-4">
+        <label for="gpu-slider" class="font-semibold flex items-center gap-2">
+          <i data-lucide="server" class="w-4 h-4 text-emerald-glow"></i> GPU Nodes (H100 / A100)
+        </label>
+        <span class="mono text-xl font-bold text-gradient" id="gpu-count-label">10</span>
+      </div>
+      <input type="range" id="gpu-slider" min="1" max="100" value="10" step="1" class="w-full" />
+      <div class="flex justify-between text-xs text-slate-500 mt-2">
+        <span>1 node</span>
+        <span>100 nodes</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mt-8">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Avg. Grid Curtailment Price ($/MWh)</label>
+          <input id="curtailment-price" type="number" value="18" min="0" step="0.5"
+            class="w-full glass rounded-lg px-3 py-2 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Compute Market Rate ($/MWh eq.)</label>
+          <input id="compute-price" type="number" value="145" min="0" step="1"
+            class="w-full glass rounded-lg px-3 py-2 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+        </div>
+      </div>
+
+      <div class="mt-8 flex items-start gap-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4">
+        <i data-lucide="lightbulb" class="w-5 h-5 text-emerald-glow shrink-0 mt-0.5"></i>
+        <p class="text-xs text-slate-400">
+          Estimates assume each H100/A100 node draws ~1.6 kW under sustained AI inference/training load,
+          sourced from stranded renewable capacity that would otherwise be curtailed. Figures are illustrative,
+          not financial guarantees.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col justify-between animate-float">
+        <div class="flex items-center justify-between">
+          <i data-lucide="battery" class="w-6 h-6 text-emerald-glow"></i>
+          <span class="text-xs text-slate-500">Daily</span>
+        </div>
+        <p class="text-3xl font-bold mono mt-4" id="calc-energy-savings">0</p>
+        <p class="text-xs text-slate-400 mt-1">Energy Savings (kWh/day)</p>
+      </div>
+      <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col justify-between animate-float" style="animation-delay:0.4s">
+        <div class="flex items-center justify-between">
+          <i data-lucide="leaf" class="w-6 h-6 text-cyan-glow"></i>
+          <span class="text-xs text-slate-500">Monthly</span>
+        </div>
+        <p class="text-3xl font-bold mono mt-4" id="calc-carbon-offset">0</p>
+        <p class="text-xs text-slate-400 mt-1">Carbon Offset (Tons CO₂)</p>
+      </div>
+      <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col justify-between animate-float" style="animation-delay:0.8s">
+        <div class="flex items-center justify-between">
+          <i data-lucide="coins" class="w-6 h-6 text-emerald-glow"></i>
+          <span class="text-xs text-slate-500">Daily</span>
+        </div>
+        <p class="text-3xl font-bold mono mt-4" id="calc-pwr-rewards">0</p>
+        <p class="text-xs text-slate-400 mt-1">$PWR Rewards Earned</p>
+      </div>
+      <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col justify-between animate-float" style="animation-delay:1.2s">
+        <div class="flex items-center justify-between">
+          <i data-lucide="trending-up" class="w-6 h-6 text-cyan-glow"></i>
+          <span class="text-xs text-slate-500">Monthly</span>
+        </div>
+        <p class="text-3xl font-bold mono mt-4" id="calc-net-revenue">$0</p>
+        <p class="text-xs text-slate-400 mt-1">Est. Net Revenue (USD)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= LIVE ENERGY-TO-COMPUTE CHART ================= -->
+<section id="chart" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+  <div class="glass glass-border-glow rounded-3xl p-6 lg:p-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+      <div>
+        <h2 class="text-2xl lg:text-3xl font-bold mb-1">Real-Time Grid Curtailment vs AI Compute Demand</h2>
+        <p class="text-slate-400 text-sm">Live simulated telemetry from PowerCompute orchestration nodes</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="flex items-center gap-1.5 text-xs text-slate-400"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 chip-dot text-emerald-400"></span>Curtailed Energy</span>
+        <span class="flex items-center gap-1.5 text-xs text-slate-400"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 chip-dot text-cyan-400"></span>Compute Demand</span>
+      </div>
+    </div>
+    <div class="relative h-[320px] lg:h-[380px]">
+      <canvas id="energyChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STAKING & UTILITY PORTAL ================= -->
+<section id="staking" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+  <div class="text-center max-w-2xl mx-auto mb-10">
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3">Staking &amp; Utility Portal</h2>
+    <p class="text-slate-400">Connect your wallet to view live balances and stake $PWR to earn a share of protocol emissions.</p>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    <!-- Wallet balances -->
+    <div class="glass glass-border-glow rounded-3xl p-6 lg:col-span-1">
+      <h3 class="font-semibold flex items-center gap-2 mb-6">
+        <i data-lucide="wallet" class="w-5 h-5 text-emerald-glow"></i> Wallet Overview
+      </h3>
+      <div class="space-y-4">
+        <div class="glass rounded-xl p-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+              <i data-lucide="zap" class="w-4 h-4 text-charcoal"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400">$PWR Balance</p>
+              <p class="mono font-bold" id="pwr-balance">--</p>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center">
+              <i data-lucide="diamond" class="w-4 h-4 text-white"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400">ETH Balance (Base Sepolia)</p>
+              <p class="mono font-bold" id="eth-balance">--</p>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500/60 to-cyan-500/60 flex items-center justify-center">
+              <i data-lucide="lock" class="w-4 h-4 text-charcoal"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400">Currently Staked</p>
+              <p class="mono font-bold" id="staked-balance">--</p>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-yellow-400/60 to-emerald-500/60 flex items-center justify-center">
+              <i data-lucide="gift" class="w-4 h-4 text-charcoal"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400">Pending Rewards</p>
+              <p class="mono font-bold" id="pending-rewards">--</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-5 leading-relaxed">
+        Connect a wallet on <span class="text-emerald-glow">Base Sepolia</span> to read live on-chain balances via the
+        deployed $PWR contract. Update <span class="mono">CONTRACT_ADDRESS</span> in the script once your token is deployed.
+      </p>
+    </div>
+
+    <!-- Stake / Unstake -->
+    <div class="glass glass-border-glow rounded-3xl p-6 lg:col-span-2">
+      <div class="flex items-center gap-2 mb-6 glass rounded-full p-1 w-fit">
+        <button id="tab-stake" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 text-charcoal">Stake</button>
+        <button id="tab-unstake" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold text-slate-300">Unstake</button>
+      </div>
+
+      <div id="panel-stake">
+        <label class="text-xs text-slate-400 block mb-2">Amount to Stake</label>
+        <div class="flex gap-3">
+          <div class="relative flex-1">
+            <input id="stake-amount" type="number" min="0" placeholder="0.0" class="w-full glass rounded-xl px-4 py-3.5 text-lg mono outline-none focus:border-emerald-glow border border-white/10" />
+            <button id="stake-max" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-glow bg-emerald-500/10 rounded-md px-2 py-1">MAX</button>
+          </div>
+          <button id="btn-stake" class="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition whitespace-nowrap">
+            Stake $PWR
+          </button>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mt-4">
+          <div class="glass rounded-lg py-2 text-center">
+            <p class="text-[10px] text-slate-500">APR (est.)</p>
+            <p class="mono font-bold text-emerald-glow text-sm">18.4%</p>
+          </div>
+          <div class="glass rounded-lg py-2 text-center">
+            <p class="text-[10px] text-slate-500">Lock-up</p>
+            <p class="mono font-bold text-sm">None</p>
+          </div>
+          <div class="glass rounded-lg py-2 text-center">
+            <p class="text-[10px] text-slate-500">Reward Token</p>
+            <p class="mono font-bold text-sm">$PWR</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-unstake" class="hidden">
+        <label class="text-xs text-slate-400 block mb-2">Amount to Unstake</label>
+        <div class="flex gap-3">
+          <div class="relative flex-1">
+            <input id="unstake-amount" type="number" min="0" placeholder="0.0" class="w-full glass rounded-xl px-4 py-3.5 text-lg mono outline-none focus:border-cyan-glow border border-white/10" />
+            <button id="unstake-max" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-cyan-glow bg-cyan-500/10 rounded-md px-2 py-1">MAX</button>
+          </div>
+          <button id="btn-unstake" class="rounded-xl glass glass-border-glow px-6 font-semibold text-slate-100 hover:shadow-glow-cyan transition whitespace-nowrap">
+            Unstake $PWR
+          </button>
+        </div>
+        <button id="btn-claim" class="mt-4 w-full rounded-xl glass glass-border-glow px-6 py-3 font-semibold text-slate-100 hover:shadow-glow-emerald transition flex items-center justify-center gap-2">
+          <i data-lucide="gift" class="w-4 h-4 text-emerald-glow"></i> Claim Pending Rewards
+        </button>
+      </div>
+
+      <p id="stake-tx-status" class="text-xs mono text-slate-500 mt-4 break-all"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+  <div class="text-center max-w-2xl mx-auto mb-10">
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3">How It Works</h2>
+    <p class="text-slate-400">Three verifiable steps turn wasted electrons into decentralized AI compute.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-6">
+    <div class="glass glass-border-glow rounded-3xl p-7 relative">
+      <span class="mono text-xs text-emerald-glow">STEP 01</span>
+      <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mt-4 mb-5">
+        <i data-lucide="wind" class="w-6 h-6 text-emerald-glow"></i>
+      </div>
+      <h3 class="font-bold text-lg mb-2">Grid Curtailment Detection</h3>
+      <p class="text-sm text-slate-400">Oracle-fed sensors identify stranded/curtailed renewable energy at wind &amp; solar sites in real time, before it's wasted or throttled by the grid.</p>
+    </div>
+    <div class="glass glass-border-glow rounded-3xl p-7 relative">
+      <span class="mono text-xs text-cyan-glow">STEP 02</span>
+      <div class="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mt-4 mb-5">
+        <i data-lucide="shield-check" class="w-6 h-6 text-cyan-glow"></i>
+      </div>
+      <h3 class="font-bold text-lg mb-2">Node Verification (PoEC)</h3>
+      <p class="text-sm text-slate-400">GPU node operators submit Proof-of-Energy-Consumption attestations, cryptographically verified on-chain against real-time energy meter data.</p>
+    </div>
+    <div class="glass glass-border-glow rounded-3xl p-7 relative">
+      <span class="mono text-xs text-emerald-glow">STEP 03</span>
+      <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mt-4 mb-5">
+        <i data-lucide="brain-circuit" class="w-6 h-6 text-emerald-glow"></i>
+      </div>
+      <h3 class="font-bold text-lg mb-2">AI Compute Orchestration</h3>
+      <p class="text-sm text-slate-400">Verified green capacity is routed to AI training/inference jobs via the PowerCompute marketplace, and operators are rewarded in $PWR.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ROADMAP ================= -->
+<section id="roadmap" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+  <div class="text-center max-w-2xl mx-auto mb-10">
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3">Protocol Roadmap</h2>
+    <p class="text-slate-400">From testnet validation to full Virtual Power Plant (VPP) expansion.</p>
+  </div>
+
+  <div class="max-w-3xl mx-auto space-y-4" id="roadmap-accordion">
+
+    <div class="glass glass-border-glow rounded-2xl overflow-hidden">
+      <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left">
+        <div class="flex items-center gap-4">
+          <span class="mono text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-glow font-bold">Q1</span>
+          <span class="font-semibold">Testnet Launch &amp; Node Onboarding</span>
+        </div>
+        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
+      </button>
+      <div class="accordion-content px-5">
+        <ul class="text-sm text-slate-400 space-y-2 pb-5 list-disc pl-4">
+          <li>Deploy $PWR token &amp; staking contracts to Base Sepolia testnet</li>
+          <li>Onboard first 250 pilot GPU nodes across 3 renewable energy sites</li>
+          <li>Launch Proof-of-Energy-Consumption (PoEC) oracle network v1</li>
+          <li>Public bug bounty and third-party smart contract audit</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="glass glass-border-glow rounded-2xl overflow-hidden">
+      <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left">
+        <div class="flex items-center gap-4">
+          <span class="mono text-xs px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-glow font-bold">Q2</span>
+          <span class="font-semibold">Token Generation Event (TGE) &amp; Mainnet</span>
+        </div>
+        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
+      </button>
+      <div class="accordion-content px-5">
+        <ul class="text-sm text-slate-400 space-y-2 pb-5 list-disc pl-4">
+          <li>$PWR Token Generation Event with DEX &amp; CEX liquidity pairing</li>
+          <li>Mainnet deployment on Base with cross-chain bridge to Ethereum L1</li>
+          <li>Governance module activation — $PWR holders vote on emission rates</li>
+          <li>Institutional GPU-operator onboarding program (500+ nodes target)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="glass glass-border-glow rounded-2xl overflow-hidden">
+      <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left">
+        <div class="flex items-center gap-4">
+          <span class="mono text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-glow font-bold">Q3</span>
+          <span class="font-semibold">Virtual Power Plant (VPP) Expansion</span>
+        </div>
+        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
+      </button>
+      <div class="accordion-content px-5">
+        <ul class="text-sm text-slate-400 space-y-2 pb-5 list-disc pl-4">
+          <li>Aggregate distributed nodes into a decentralized Virtual Power Plant</li>
+          <li>Grid demand-response contracts with regional utility partners</li>
+          <li>AI compute marketplace v2 — spot &amp; futures pricing for GPU-hours</li>
+          <li>Expansion into 10+ new renewable energy corridors globally</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="glass glass-border-glow rounded-2xl overflow-hidden">
+      <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left">
+        <div class="flex items-center gap-4">
+          <span class="mono text-xs px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-glow font-bold">Q4</span>
+          <span class="font-semibold">Full Decentralization &amp; DAO Handover</span>
+        </div>
+        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
+      </button>
+      <div class="accordion-content px-5">
+        <ul class="text-sm text-slate-400 space-y-2 pb-5 list-disc pl-4">
+          <li>Protocol treasury &amp; emissions fully governed by PowerCompute DAO</li>
+          <li>Ownership renouncement of core contracts post-final audit</li>
+          <li>Open-source release of the full orchestration &amp; oracle stack</li>
+          <li>Long-term $PWR buyback-and-stake program funded by protocol revenue</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= TOKENOMICS ================= -->
+<section id="tokenomics" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+  <div class="text-center max-w-2xl mx-auto mb-10">
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3">Tokenomics Breakdown</h2>
+    <p class="text-slate-400">Fixed max supply of <span class="text-emerald-glow font-semibold">1,000,000,000 $PWR</span> — no unbounded inflation.</p>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-8 items-center">
+    <div class="glass glass-border-glow rounded-3xl p-6 lg:p-8">
+      <div class="w-full h-6 rounded-full overflow-hidden flex border border-white/10">
+        <div class="h-full bg-emerald-500" style="width:30%"></div>
+        <div class="h-full bg-cyan-500" style="width:25%"></div>
+        <div class="h-full bg-emerald-300" style="width:20%"></div>
+        <div class="h-full bg-cyan-300" style="width:15%"></div>
+        <div class="h-full bg-slate-500" style="width:10%"></div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-emerald-500 shrink-0"></span>
+          <div>
+            <p class="text-sm font-semibold">Node Rewards</p>
+            <p class="text-xs text-slate-500">30%</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-cyan-500 shrink-0"></span>
+          <div>
+            <p class="text-sm font-semibold">Staking Pool</p>
+            <p class="text-xs text-slate-500">25%</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-emerald-300 shrink-0"></span>
+          <div>
+            <p class="text-sm font-semibold">Ecosystem &amp; Grants</p>
+            <p class="text-xs text-slate-500">20%</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-cyan-300 shrink-0"></span>
+          <div>
+            <p class="text-sm font-semibold">Team &amp; Advisors</p>
+            <p class="text-xs text-slate-500">15%</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-slate-500 shrink-0"></span>
+          <div>
+            <p class="text-sm font-semibold">Liquidity &amp; CEX</p>
+            <p class="text-xs text-slate-500">10%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="glass glass-border-glow rounded-2xl p-5 flex items-center justify-between">
+        <span class="text-sm text-slate-400">Max Supply</span>
+        <span class="mono font-bold">1,000,000,000 $PWR</span>
+      </div>
+      <div class="glass glass-border-glow rounded-2xl p-5 flex items-center justify-between">
+        <span class="text-sm text-slate-400">Initial Circulating Supply</span>
+        <span class="mono font-bold">200,000,000 $PWR</span>
+      </div>
+      <div class="glass glass-border-glow rounded-2xl p-5 flex items-center justify-between">
+        <span class="text-sm text-slate-400">Network</span>
+        <span class="mono font-bold">Base (Sepolia Testnet)</span>
+      </div>
+      <div class="glass glass-border-glow rounded-2xl p-5 flex items-center justify-between">
+        <span class="text-sm text-slate-400">Team Vesting</span>
+        <span class="mono font-bold">24-month linear, 6-month cliff</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer class="mt-12 border-t border-white/5 px-5 lg:px-8 py-12">
+  <div class="max-w-7xl mx-auto grid md:grid-cols-4 gap-10">
+    <div class="md:col-span-2">
+      <a href="#top" class="flex items-center gap-2.5 font-bold text-lg mb-4">
+        <span class="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-glow-emerald">
+          <i data-lucide="zap" class="w-5 h-5 text-charcoal"></i>
+        </span>
+        <span>Power<span class="text-gradient">Compute</span></span>
+      </a>
+      <p class="text-sm text-slate-500 max-w-md leading-relaxed">
+        PowerCompute is a decentralized physical infrastructure network (DePIN) protocol that
+        matches stranded renewable energy with verified AI compute demand. $PWR is a utility and
+        governance token; it is not an investment contract or security. Nothing on this site
+        constitutes financial advice.
+      </p>
+      <div class="flex items-center gap-2 mt-5 glass glass-border-glow rounded-full px-4 py-2 w-fit">
+        <i data-lucide="badge-check" class="w-4 h-4 text-emerald-glow"></i>
+        <span class="text-xs mono text-slate-300">Contract: <span id="footer-contract-addr" class="text-emerald-glow">0x0000...0000</span></span>
+      </div>
+    </div>
+
+    <div>
+      <p class="font-semibold mb-4 text-sm">Community</p>
+      <div class="space-y-3 text-sm text-slate-400">
+        <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="twitter" class="w-4 h-4"></i> X / Twitter</a>
+        <a href="https://discord.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="message-circle" class="w-4 h-4"></i> Discord</a>
+        <a href="https://t.me" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="send" class="w-4 h-4"></i> Telegram</a>
+      </div>
+    </div>
+
+    <div>
+      <p class="font-semibold mb-4 text-sm">Resources</p>
+      <div class="space-y-3 text-sm text-slate-400">
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-cyan-glow transition"><i data-lucide="github" class="w-4 h-4"></i> GitHub</a>
+        <a href="#" class="flex items-center gap-2 hover:text-cyan-glow transition"><i data-lucide="book-open" class="w-4 h-4"></i> Documentation</a>
+        <a href="https://sepolia.basescan.org" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-cyan-glow transition"><i data-lucide="search-code" class="w-4 h-4"></i> BaseScan Explorer</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto border-t border-white/5 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+    <p class="text-xs text-slate-500">© 2026 PowerCompute Protocol. All rights reserved.</p>
+    <p class="text-xs text-slate-500 text-center sm:text-right max-w-xl">
+      $PWR is deployed on a public testnet for demonstration purposes. Testnet tokens hold no monetary value.
+      Always verify contract addresses independently before interacting.
+    </p>
+  </div>
+</footer>
+
+<script>
+/* ==========================================================================
+   POWERCOMPUTE DAPP — CORE APPLICATION LOGIC
+   ========================================================================== */
+
+lucide.createIcons();
+
+/* -------------------------------------------------------------------------
+   0. CONFIG — update after deploying PowerComputeToken.sol via Remix
+   ------------------------------------------------------------------------- */
+const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // <-- paste deployed address here
+const BASE_SEPOLIA_CHAIN_ID = 84532;
+const BASE_SEPOLIA_CHAIN_ID_HEX = "0x14A34";
+const BASE_SEPOLIA_PARAMS = {
+  chainId: BASE_SEPOLIA_CHAIN_ID_HEX,
+  chainName: "Base Sepolia",
+  nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: ["https://sepolia.base.org"],
+  blockExplorerUrls: ["https://sepolia.basescan.org"]
+};
+
+const ERC20_STAKING_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function stakedBalanceOf(address user) view returns (uint256)",
+  "function pendingRewardsOf(address user) view returns (uint256)",
+  "function totalStaked() view returns (uint256)",
+  "function stake(uint256 amount)",
+  "function unstake(uint256 amount)",
+  "function claimRewards()"
+];
+
+/* -------------------------------------------------------------------------
+   1. STATE
+   ------------------------------------------------------------------------- */
+let provider = null;
+let signer = null;
+let userAddress = null;
+let pwrContract = null;
+let isContractConfigured = CONTRACT_ADDRESS !== "0x0000000000000000000000000000000000000000";
+
+/* -------------------------------------------------------------------------
+   2. TOAST HELPER
+   ------------------------------------------------------------------------- */
+function showToast(message, duration = 4200) {
+  const toast = document.getElementById('toast');
+  const msg = document.getElementById('toast-msg');
+  msg.textContent = message;
+  toast.classList.remove('hidden');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => toast.classList.add('hidden'), duration);
+}
+
+/* -------------------------------------------------------------------------
+   3. WALLET CONNECTION (Ethers v5)
+   ------------------------------------------------------------------------- */
+function shortenAddress(addr) {
+  return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
+}
+
+async function switchToBaseSepolia() {
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: BASE_SEPOLIA_CHAIN_ID_HEX }]
+    });
+  } catch (switchError) {
+    if (switchError && switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [BASE_SEPOLIA_PARAMS]
+        });
+      } catch (addError) {
+        showToast("Could not add Base Sepolia network automatically. Please add it manually.");
+      }
+    }
+  }
+}
+
+async function connectWallet() {
+  if (typeof window.ethereum === "undefined") {
+    showToast("No Web3 wallet detected. Please install MetaMask, Coinbase Wallet, or Rabby.");
+    window.open("https://metamask.io/download/", "_blank");
+    return;
+  }
+
+  try {
+    provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+    const accounts = await provider.send("eth_requestAccounts", []);
+    userAddress = accounts[0];
+    signer = provider.getSigner();
+
+    const network = await provider.getNetwork();
+    if (network.chainId !== BASE_SEPOLIA_CHAIN_ID) {
+      showToast("Switching network to Base Sepolia testnet...");
+      await switchToBaseSepolia();
+      provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      signer = provider.getSigner();
+    }
+
+    if (isContractConfigured) {
+      pwrContract = new ethers.Contract(CONTRACT_ADDRESS, ERC20_STAKING_ABI, signer);
+    }
+
+    updateWalletUI(true);
+    await refreshBalances();
+    showToast(`Wallet connected: ${shortenAddress(userAddress)}`);
+
+    window.ethereum.on("accountsChanged", () => window.location.reload());
+    window.ethereum.on("chainChanged", () => window.location.reload());
+  } catch (err) {
+    console.error(err);
+    showToast("Wallet connection was rejected or failed.");
+  }
+}
+
+function updateWalletUI(connected) {
+  const labels = [
+    document.getElementById('wallet-label-nav'),
+    document.getElementById('wallet-label-hero')
+  ];
+  const buttons = [
+    document.getElementById('connect-wallet-nav'),
+    document.getElementById('connect-wallet-hero'),
+    document.getElementById('connect-wallet-mobile')
+  ];
+  const statusEl = document.getElementById('wallet-status');
+
+  if (connected && userAddress) {
+    labels.forEach(el => { if (el) el.textContent = shortenAddress(userAddress); });
+    buttons.forEach(btn => { if (btn) btn.classList.add('ring-2', 'ring-emerald-400'); });
+    statusEl.textContent = `● Connected on Base Sepolia — ${userAddress}`;
+    statusEl.classList.add('text-emerald-glow');
+  } else {
+    labels.forEach(el => { if (el) el.textContent = 'Connect Wallet'; });
+    statusEl.textContent = "";
+  }
+}
+
+async function refreshBalances() {
+  if (!provider || !userAddress) return;
+
+  try {
+    const ethBalRaw = await provider.getBalance(userAddress);
+    document.getElementById('eth-balance').textContent =
+      `${parseFloat(ethers.utils.formatEther(ethBalRaw)).toFixed(4)} ETH`;
+  } catch (e) {
+    document.getElementById('eth-balance').textContent = "-- ETH";
+  }
+
+  if (!isContractConfigured || !pwrContract) {
+    document.getElementById('pwr-balance').textContent = "Contract not deployed";
+    document.getElementById('staked-balance').textContent = "--";
+    document.getElementById('pending-rewards').textContent = "--";
+    return;
+  }
+
+  try {
+    const [rawBal, rawStaked, rawPending, decimals, symbol] = await Promise.all([
+      pwrContract.balanceOf(userAddress),
+      pwrContract.stakedBalanceOf(userAddress),
+      pwrContract.pendingRewardsOf(userAddress),
+      pwrContract.decimals(),
+      pwrContract.symbol()
+    ]);
+
+    document.getElementById('pwr-balance').textContent =
+      `${parseFloat(ethers.utils.formatUnits(rawBal, decimals)).toFixed(2)} ${symbol}`;
+    document.getElementById('staked-balance').textContent =
+      `${parseFloat(ethers.utils.formatUnits(rawStaked, decimals)).toFixed(2)} ${symbol}`;
+    document.getElementById('pending-rewards').textContent =
+      `${parseFloat(ethers.utils.formatUnits(rawPending, decimals)).toFixed(4)} ${symbol}`;
+  } catch (err) {
+    console.error("Balance read failed:", err);
+    document.getElementById('pwr-balance').textContent = "Read error";
+  }
+}
+
+/* -------------------------------------------------------------------------
+   4. STAKING ACTIONS
+   ------------------------------------------------------------------------- */
+function setTxStatus(message, isError = false) {
+  const el = document.getElementById('stake-tx-status');
+  el.textContent = message;
+  el.classList.toggle('text-red-400', isError);
+  el.classList.toggle('text-slate-500', !isError);
+}
+
+async function requireWalletAndContract() {
+  if (!signer || !userAddress) {
+    showToast("Please connect your wallet first.");
+    return false;
+  }
+  if (!isContractConfigured || !pwrContract) {
+    showToast("Staking contract address is not configured yet. Deploy PowerComputeToken.sol and set CONTRACT_ADDRESS in index.html.");
+    return false;
+  }
+  return true;
+}
+
+async function handleStake() {
+  if (!(await requireWalletAndContract())) return;
+  const amountInput = document.getElementById('stake-amount').value;
+  if (!amountInput || parseFloat(amountInput) <= 0) {
+    showToast("Enter a valid amount to stake.");
+    return;
+  }
+  try {
+    const decimals = await pwrContract.decimals();
+    const amountWei = ethers.utils.parseUnits(amountInput, decimals);
+    setTxStatus("Submitting stake transaction...");
+    const tx = await pwrContract.stake(amountWei);
+    setTxStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    setTxStatus(`Stake confirmed: ${tx.hash}`);
+    showToast("Stake successful!");
+    await refreshBalances();
+  } catch (err) {
+    console.error(err);
+    setTxStatus(err.reason || err.message || "Transaction failed.", true);
+  }
+}
+
+async function handleUnstake() {
+  if (!(await requireWalletAndContract())) return;
+  const amountInput = document.getElementById('unstake-amount').value;
+  if (!amountInput || parseFloat(amountInput) <= 0) {
+    showToast("Enter a valid amount to unstake.");
+    return;
+  }
+  try {
+    const decimals = await pwrContract.decimals();
+    const amountWei = ethers.utils.parseUnits(amountInput, decimals);
+    setTxStatus("Submitting unstake transaction...");
+    const tx = await pwrContract.unstake(amountWei);
+    setTxStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    setTxStatus(`Unstake confirmed: ${tx.hash}`);
+    showToast("Unstake successful!");
+    await refreshBalances();
+  } catch (err) {
+    console.error(err);
+    setTxStatus(err.reason || err.message || "Transaction failed.", true);
+  }
+}
+
+async function handleClaim() {
+  if (!(await requireWalletAndContract())) return;
+  try {
+    setTxStatus("Submitting claim transaction...");
+    const tx = await pwrContract.claimRewards();
+    setTxStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    setTxStatus(`Claim confirmed: ${tx.hash}`);
+    showToast("Rewards claimed!");
+    await refreshBalances();
+  } catch (err) {
+    console.error(err);
+    setTxStatus(err.reason || err.message || "Transaction failed.", true);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   5. LIVE PROTOCOL METRICS (animated counters, simulated telemetry)
+   ------------------------------------------------------------------------- */
+function animateCounter(el, target, formatter = (v) => Math.round(v).toLocaleString(), duration = 1600) {
+  const start = 0;
+  const startTime = performance.now();
+  function tick(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const value = start + (target - start) * eased;
+    el.textContent = formatter(value);
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+const baseMetrics = {
+  energy: 184230,
+  gpus: 1247,
+  staked: 42800000,
+  tvl: 6120000
+};
+
+function renderMetrics() {
+  animateCounter(document.getElementById('metric-energy'), baseMetrics.energy, v => Math.round(v).toLocaleString());
+  animateCounter(document.getElementById('metric-gpus'), baseMetrics.gpus, v => Math.round(v).toLocaleString());
+  animateCounter(document.getElementById('metric-staked'), baseMetrics.staked, v => Math.round(v).toLocaleString());
+  animateCounter(document.getElementById('metric-tvl'), baseMetrics.tvl, v => `$${Math.round(v).toLocaleString()}`);
+}
+
+function driftMetricsLive() {
+  setInterval(() => {
+    baseMetrics.energy += Math.random() * 6;
+    baseMetrics.gpus += Math.random() > 0.7 ? 1 : 0;
+    baseMetrics.staked += Math.random() * 900;
+    baseMetrics.tvl += (Math.random() - 0.3) * 1400;
+
+    document.getElementById('metric-energy').textContent = Math.round(baseMetrics.energy).toLocaleString();
+    document.getElementById('metric-gpus').textContent = Math.round(baseMetrics.gpus).toLocaleString();
+    document.getElementById('metric-staked').textContent = Math.round(baseMetrics.staked).toLocaleString();
+    document.getElementById('metric-tvl').textContent = `$${Math.round(baseMetrics.tvl).toLocaleString()}`;
+  }, 3200);
+}
+
+/* -------------------------------------------------------------------------
+   6. PRESALE / MILESTONE PROGRESS BAR + COUNTDOWN
+   ------------------------------------------------------------------------- */
+const PRESALE_RAISED = 1250000;
+const PRESALE_GOAL = 2000000;
+
+function renderPresaleProgress() {
+  const pct = Math.min((PRESALE_RAISED / PRESALE_GOAL) * 100, 100);
+  const bar = document.getElementById('progress-bar');
+  const pctLabel = document.getElementById('progress-pct');
+
+  requestAnimationFrame(() => {
+    bar.style.width = `${pct}%`;
+  });
+
+  animateCounter(pctLabel, pct, v => `${v.toFixed(1)}%`, 1800);
+  document.getElementById('raised-amount').textContent = `$${PRESALE_RAISED.toLocaleString()}`;
+  document.getElementById('goal-amount').textContent = `$${PRESALE_GOAL.toLocaleString()}`;
+}
+
+function startCountdown() {
+  const target = new Date();
+  target.setDate(target.getDate() + 6);
+  target.setHours(target.getHours() + 14);
+
+  const countdownEl = document.getElementById('countdown');
+
+  function tick() {
+    const now = new Date().getTime();
+    const distance = target.getTime() - now;
+
+    if (distance <= 0) {
+      countdownEl.textContent = "PHASE LIVE";
+      return;
+    }
+
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+    countdownEl.textContent =
+      `${String(days).padStart(2, '0')}:${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    requestAnimationFrame(() => setTimeout(tick, 1000));
+  }
+  tick();
+}
+
+/* -------------------------------------------------------------------------
+   7. YIELD CALCULATOR
+   ------------------------------------------------------------------------- */
+const KW_PER_NODE = 1.6; // avg sustained draw per H100/A100-class node, in kW
+const CO2_KG_PER_KWH_OFFSET = 0.71; // avg grid carbon intensity offset factor
+const PWR_PER_KWH_ROUTED = 0.42; // reward emission rate assumption
+
+function runCalculator() {
+  const nodes = parseFloat(document.getElementById('gpu-slider').value) || 0;
+  const curtailmentPrice = parseFloat(document.getElementById('curtailment-price').value) || 0;
+  const computePrice = parseFloat(document.getElementById('compute-price').value) || 0;
+
+  document.getElementById('gpu-count-label').textContent = nodes;
+
+  const dailyKwh = nodes * KW_PER_NODE * 24;
+  const monthlyKwh = dailyKwh * 30;
+  const monthlyCarbonOffsetTons = (monthlyKwh * CO2_KG_PER_KWH_OFFSET) / 1000;
+  const dailyPwrRewards = dailyKwh * PWR_PER_KWH_ROUTED;
+
+  const dailyMwh = dailyKwh / 1000;
+  const dailyCostAtCurtailment = dailyMwh * curtailmentPrice;
+  const dailyRevenueAtComputeRate = dailyMwh * computePrice;
+  const monthlyNetRevenue = (dailyRevenueAtComputeRate - dailyCostAtCurtailment) * 30;
+
+  document.getElementById('calc-energy-savings').textContent = Math.round(dailyKwh).toLocaleString();
+  document.getElementById('calc-carbon-offset').textContent = monthlyCarbonOffsetTons.toFixed(2);
+  document.getElementById('calc-pwr-rewards').textContent = Math.round(dailyPwrRewards).toLocaleString();
+  document.getElementById('calc-net-revenue').textContent =
+    `$${Math.round(monthlyNetRevenue).toLocaleString()}`;
+}
+
+/* -------------------------------------------------------------------------
+   8. LIVE ENERGY-TO-COMPUTE CHART (Chart.js)
+   ------------------------------------------------------------------------- */
+let energyChart;
+const MAX_CHART_POINTS = 24;
+
+function buildInitialChartData() {
+  const labels = [];
+  const curtailedData = [];
+  const demandData = [];
+  const now = new Date();
+
+  for (let i = MAX_CHART_POINTS - 1; i >= 0; i--) {
+    const t = new Date(now.getTime() - i * 60000 * 5);
+    labels.push(t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    curtailedData.push(40 + Math.random() * 60 + 20 * Math.sin(i / 3));
+    demandData.push(30 + Math.random() * 50 + 18 * Math.cos(i / 4));
+  }
+  return { labels, curtailedData, demandData };
+}
+
+function initEnergyChart() {
+  const ctx = document.getElementById('energyChart').getContext('2d');
+  const { labels, curtailedData, demandData } = buildInitialChartData();
+
+  const emeraldGradient = ctx.createLinearGradient(0, 0, 0, 360);
+  emeraldGradient.addColorStop(0, 'rgba(16,185,129,0.35)');
+  emeraldGradient.addColorStop(1, 'rgba(16,185,129,0)');
+
+  const cyanGradient = ctx.createLinearGradient(0, 0, 0, 360);
+  cyanGradient.addColorStop(0, 'rgba(6,182,212,0.35)');
+  cyanGradient.addColorStop(1, 'rgba(6,182,212,0)');
+
+  energyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Curtailed Energy (MWh)',
+          data: curtailedData,
+          borderColor: '#10B981',
+          backgroundColor: emeraldGradient,
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: true
+        },
+        {
+          label: 'AI Compute Demand (MWh eq.)',
+          data: demandData,
+          borderColor: '#06B6D4',
+          backgroundColor: cyanGradient,
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0E1526',
+          borderColor: 'rgba(16,185,129,0.4)',
+          borderWidth: 1,
+          titleColor: '#E5F2ED',
+          bodyColor: '#94A3B8',
+          padding: 10,
+          displayColors: true
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#64748B', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#64748B' },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+function driftEnergyChartLive() {
+  setInterval(() => {
+    if (!energyChart) return;
+    const now = new Date();
+
+    energyChart.data.labels.push(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    energyChart.data.labels.shift();
+
+    const lastCurtailed = energyChart.data.datasets[0].data[energyChart.data.datasets[0].data.length - 1];
+    const lastDemand = energyChart.data.datasets[1].data[energyChart.data.datasets[1].data.length - 1];
+
+    const nextCurtailed = Math.max(10, lastCurtailed + (Math.random() - 0.5) * 22);
+    const nextDemand = Math.max(10, lastDemand + (Math.random() - 0.5) * 18);
+
+    energyChart.data.datasets[0].data.push(nextCurtailed);
+    energyChart.data.datasets[0].data.shift();
+    energyChart.data.datasets[1].data.push(nextDemand);
+    energyChart.data.datasets[1].data.shift();
+
+    energyChart.update('none');
+  }, 2600);
+}
+
+/* -------------------------------------------------------------------------
+   9. UI INTERACTIONS — nav, tabs, accordion
+   ------------------------------------------------------------------------- */
+function setupMobileMenu() {
+  const btn = document.getElementById('mobile-menu-btn');
+  const menu = document.getElementById('mobile-menu');
+  btn.addEventListener('click', () => menu.classList.toggle('hidden'));
+  menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => menu.classList.add('hidden')));
+}
+
+function setupStakeTabs() {
+  const tabStake = document.getElementById('tab-stake');
+  const tabUnstake = document.getElementById('tab-unstake');
+  const panelStake = document.getElementById('panel-stake');
+  const panelUnstake = document.getElementById('panel-unstake');
+
+  function activate(tab) {
+    const stakeActive = tab === 'stake';
+    panelStake.classList.toggle('hidden', !stakeActive);
+    panelUnstake.classList.toggle('hidden', stakeActive);
+
+    tabStake.classList.toggle('bg-gradient-to-r', stakeActive);
+    tabStake.classList.toggle('from-emerald-500', stakeActive);
+    tabStake.classList.toggle('to-cyan-500', stakeActive);
+    tabStake.classList.toggle('text-charcoal', stakeActive);
+    tabStake.classList.toggle('text-slate-300', !stakeActive);
+
+    tabUnstake.classList.toggle('bg-gradient-to-r', !stakeActive);
+    tabUnstake.classList.toggle('from-emerald-500', !stakeActive);
+    tabUnstake.classList.toggle('to-cyan-500', !stakeActive);
+    tabUnstake.classList.toggle('text-charcoal', !stakeActive);
+    tabUnstake.classList.toggle('text-slate-300', stakeActive);
+  }
+
+  tabStake.addEventListener('click', () => activate('stake'));
+  tabUnstake.addEventListener('click', () => activate('unstake'));
+}
+
+function setupAccordion() {
+  document.querySelectorAll('.accordion-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const content = btn.nextElementSibling;
+      const icon = btn.querySelector('[data-lucide="chevron-down"]');
+      const isOpen = content.classList.contains('open');
+
+      document.querySelectorAll('.accordion-content.open').forEach(el => {
+        if (el !== content) {
+          el.classList.remove('open');
+          const otherIcon = el.previousElementSibling.querySelector('[data-lucide="chevron-down"]');
+          if (otherIcon) otherIcon.style.transform = 'rotate(0deg)';
+        }
+      });
+
+      content.classList.toggle('open', !isOpen);
+      if (icon) icon.style.transform = !isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    });
+  });
+  // Open first roadmap item by default
+  const first = document.querySelector('.accordion-toggle');
+  if (first) first.click();
+}
+
+function setupMaxButtons() {
+  document.getElementById('stake-max').addEventListener('click', () => {
+    const bal = document.getElementById('pwr-balance').textContent.split(' ')[0];
+    if (bal && bal !== '--' && !isNaN(parseFloat(bal))) {
+      document.getElementById('stake-amount').value = bal;
+    }
+  });
+  document.getElementById('unstake-max').addEventListener('click', () => {
+    const bal = document.getElementById('staked-balance').textContent.split(' ')[0];
+    if (bal && bal !== '--' && !isNaN(parseFloat(bal))) {
+      document.getElementById('unstake-amount').value = bal;
+    }
+  });
+}
+
+/* -------------------------------------------------------------------------
+   10. EVENT WIRING
+   ------------------------------------------------------------------------- */
+document.getElementById('connect-wallet-nav').addEventListener('click', connectWallet);
+document.getElementById('connect-wallet-hero').addEventListener('click', connectWallet);
+document.getElementById('connect-wallet-mobile').addEventListener('click', connectWallet);
+
+document.getElementById('gpu-slider').addEventListener('input', runCalculator);
+document.getElementById('curtailment-price').addEventListener('input', runCalculator);
+document.getElementById('compute-price').addEventListener('input', runCalculator);
+
+document.getElementById('btn-stake').addEventListener('click', handleStake);
+document.getElementById('btn-unstake').addEventListener('click', handleUnstake);
+document.getElementById('btn-claim').addEventListener('click', handleClaim);
+
+/* -------------------------------------------------------------------------
+   11. BOOTSTRAP
+   ------------------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  setupMobileMenu();
+  setupStakeTabs();
+  setupAccordion();
+  setupMaxButtons();
+
+  renderMetrics();
+  driftMetricsLive();
+
+  renderPresaleProgress();
+  startCountdown();
+
+  runCalculator();
+
+  initEnergyChart();
+  driftEnergyChartLive();
+
+  if (isContractConfigured) {
+    document.getElementById('footer-contract-addr').textContent = shortenAddress(CONTRACT_ADDRESS);
+  }
+
+  lucide.createIcons();
+});
+</script>
+</body>
+</html>
