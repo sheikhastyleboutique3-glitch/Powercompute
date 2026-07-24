@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Panel — PowerCompute ($PWR)</title>
+<meta name="description" content="Owner-only administration console for the PowerCompute protocol: token emissions, node verification, energy proof review, and presale management." />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/style.css">
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { charcoal: '#090D16', panel: '#0E1526' },
+        fontFamily: {
+          sans: ['Space Grotesk', 'ui-sans-serif', 'system-ui'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+        },
+        boxShadow: {
+          'glow-emerald': '0 0 20px rgba(16,185,129,0.35), 0 0 60px rgba(16,185,129,0.08)',
+          'glow-cyan': '0 0 20px rgba(6,182,212,0.35), 0 0 60px rgba(6,182,212,0.08)'
+        }
+      }
+    }
+  }
+</script>
+</head>
+
+<body class="bg-charcoal text-slate-200 antialiased">
+
+<div class="fixed inset-0 -z-10 bg-charcoal">
+  <div class="absolute inset-0 bg-grid animate-grid-move opacity-60"></div>
+  <div class="absolute -top-40 -left-40 w-[36rem] h-[36rem] bg-emerald-500/20 rounded-full blur-[120px]"></div>
+  <div class="absolute top-1/3 -right-40 w-[36rem] h-[36rem] bg-cyan-500/15 rounded-full blur-[130px]"></div>
+</div>
+
+<!-- ================= NAVBAR ================= -->
+<header class="sticky top-0 z-50 border-b border-white/5 backdrop-blur-xl bg-charcoal/70">
+  <div class="max-w-7xl mx-auto px-5 lg:px-8 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5 font-bold text-lg">
+      <span class="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-glow-emerald">
+        <i data-lucide="zap" class="w-5 h-5 text-charcoal"></i>
+      </span>
+      <span>Power<span class="text-gradient">Compute</span></span>
+    </a>
+    <nav class="hidden md:flex items-center gap-7 text-sm text-slate-300">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="index.html#staking" class="nav-link">Staking</a>
+      <a href="dashboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="server" class="w-3.5 h-3.5"></i>Node Dashboard</a>
+      <a href="admin.html" class="nav-link active flex items-center gap-1.5"><i data-lucide="shield" class="w-3.5 h-3.5"></i>Admin</a>
+    </nav>
+    <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+      <i data-lucide="wallet" class="w-4 h-4"></i>
+      <span data-wallet-label>Connect Wallet</span>
+    </button>
+    <button id="mobile-menu-btn" class="md:hidden text-slate-300">
+      <i data-lucide="menu" class="w-6 h-6"></i>
+    </button>
+  </div>
+  <div id="mobile-menu" class="hidden md:hidden border-t border-white/5 bg-charcoal/95 px-5 py-4 space-y-3 text-sm">
+    <a href="index.html" class="block text-slate-300">Home</a>
+    <a href="index.html#staking" class="block text-slate-300">Staking</a>
+    <a href="dashboard.html" class="block text-slate-300">Node Dashboard</a>
+    <a href="admin.html" class="block text-slate-300">Admin Panel</a>
+    <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
+      <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
+    </button>
+  </div>
+</header>
+
+<main class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+
+  <!-- ================= PAGE HEADER ================= -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div>
+      <div class="glass glass-border-glow rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-mono text-emerald-glow w-fit mb-3">
+        <i data-lucide="shield" class="w-3.5 h-3.5"></i> Protocol Administration
+      </div>
+      <h1 class="text-3xl lg:text-4xl font-bold">Admin Panel</h1>
+      <p class="text-slate-400 text-sm mt-1">Owner-gated controls for PowerComputeToken, NodeRegistry, and PowerComputePresale.</p>
+    </div>
+    <p data-wallet-status class="text-xs mono text-slate-500"></p>
+  </div>
+
+  <!-- ================= ACCESS BANNERS ================= -->
+  <div id="banner-not-connected" class="glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
+    <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 shrink-0"></i>
+    <p class="text-sm text-slate-300">Connect the wallet that owns the PowerCompute contracts to access admin controls.</p>
+  </div>
+  <div id="banner-not-owner" class="hidden glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
+    <i data-lucide="lock" class="w-5 h-5 text-red-400 shrink-0"></i>
+    <p class="text-sm text-slate-300">Your connected wallet is not the owner of the $PWR token contract. Admin actions are disabled — you can still view protocol stats below.</p>
+  </div>
+  <div id="banner-not-configured" class="hidden glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
+    <i data-lucide="settings" class="w-5 h-5 text-cyan-glow shrink-0"></i>
+    <p class="text-sm text-slate-300">No contracts configured yet. Deploy the contracts in <span class="mono">/contracts</span> and set the 3 addresses in <span class="mono">assets/js/config.js</span> to unlock this panel.</p>
+  </div>
+
+  <!-- ================= PROTOCOL OVERVIEW ================= -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="coins" class="w-5 h-5 text-emerald-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="ov-total-supply">--</p>
+      <p class="text-xs text-slate-400 mt-1">Circulating Supply</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="layers" class="w-5 h-5 text-cyan-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="ov-total-staked">--</p>
+      <p class="text-xs text-slate-400 mt-1">Total Staked</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="gift" class="w-5 h-5 text-emerald-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="ov-rewards-pool">--</p>
+      <p class="text-xs text-slate-400 mt-1">Staking Rewards Pool</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="server" class="w-5 h-5 text-cyan-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="ov-active-nodes">--</p>
+      <p class="text-xs text-slate-400 mt-1">Active Nodes</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="battery-charging" class="w-5 h-5 text-emerald-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="ov-energy-routed">--</p>
+      <p class="text-xs text-slate-400 mt-1">Total Energy Routed (kWh)</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="sparkles" class="w-5 h-5 text-cyan-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="ov-emissions-minted">--</p>
+      <p class="text-xs text-slate-400 mt-1">Emission Rewards Minted</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="shopping-cart" class="w-5 h-5 text-emerald-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="ov-presale-state">--</p>
+      <p class="text-xs text-slate-400 mt-1">Presale State</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="trending-up" class="w-5 h-5 text-cyan-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="ov-presale-raised">--</p>
+      <p class="text-xs text-slate-400 mt-1">Presale ETH Raised</p>
+    </div>
+  </div>
+
+  <!-- ================= PENDING NODES REVIEW QUEUE ================= -->
+  <div data-admin-only class="hidden glass glass-border-glow rounded-3xl p-6 lg:p-7 mb-8">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-bold text-lg flex items-center gap-2">
+        <i data-lucide="shield-check" class="w-5 h-5 text-emerald-glow"></i> Pending Node Verification Queue
+      </h2>
+      <button id="btn-refresh-pending-nodes" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+      </button>
+    </div>
+    <div class="overflow-x-auto scrollbar-thin">
+      <table class="pc-table">
+        <thead>
+          <tr>
+            <th>Node ID</th><th>Operator</th><th>GPU Model</th><th>GPUs</th><th>Region</th><th>Energy Site</th><th>Registered</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="pending-nodes-tbody">
+          <tr><td colspan="8" class="text-center text-slate-500 py-8">Connect an owner/oracle wallet to load the queue.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= PENDING ENERGY PROOFS REVIEW QUEUE ================= -->
+  <div data-admin-only class="hidden glass glass-border-glow rounded-3xl p-6 lg:p-7 mb-10">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-bold text-lg flex items-center gap-2">
+        <i data-lucide="file-check-2" class="w-5 h-5 text-cyan-glow"></i> Pending Energy Proof Review Queue
+      </h2>
+      <button id="btn-refresh-pending-proofs" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+      </button>
+    </div>
+    <div class="overflow-x-auto scrollbar-thin">
+      <table class="pc-table">
+        <thead>
+          <tr>
+            <th>Proof ID</th><th>Node ID</th><th>Operator</th><th>kWh Routed</th><th>Est. Reward</th><th>Period</th><th>Submitted</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="pending-proofs-tbody">
+          <tr><td colspan="8" class="text-center text-slate-500 py-8">Connect an owner/oracle wallet to load the queue.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= ADMIN CONTROL GRID ================= -->
+  <div data-admin-only class="hidden grid lg:grid-cols-3 gap-6 mb-10">
+
+    <!-- ---------------- TOKEN CONTROLS ---------------- -->
+    <div class="glass glass-border-glow rounded-3xl p-6">
+      <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5 text-emerald-glow"></i> $PWR Token</h2>
+      <p class="text-xs text-slate-400 mb-5">PowerComputeToken.sol controls</p>
+
+      <div class="space-y-5">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Mint tokens (grants/liquidity)</label>
+          <div class="flex gap-2">
+            <input id="token-mint-to" type="text" placeholder="Recipient 0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+          </div>
+          <div class="flex gap-2 mt-2">
+            <input id="token-mint-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+            <button id="btn-token-mint" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Mint</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Approve minter (e.g. NodeRegistry address)</label>
+          <div class="flex gap-2">
+            <input id="token-minter-addr" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+            <button id="btn-token-set-minter-true" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Allow</button>
+            <button id="btn-token-set-minter-false" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold px-3 whitespace-nowrap">Revoke</button>
+          </div>
+          <button id="btn-token-set-minter-registry" class="mt-2 text-[11px] text-slate-400 hover:text-emerald-glow underline">Use configured NodeRegistry address</button>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Fund staking rewards pool</label>
+          <div class="flex gap-2">
+            <input id="token-fund-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+            <button id="btn-token-fund" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Fund</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Reward rate (wei $PWR / second)</label>
+          <div class="flex gap-2">
+            <input id="token-reward-rate" type="text" placeholder="e.g. 1000000000000000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+            <button id="btn-token-set-rate" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Unstake cooldown (seconds)</label>
+          <div class="flex gap-2">
+            <input id="token-cooldown" type="number" min="0" placeholder="e.g. 86400" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+            <button id="btn-token-set-cooldown" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between glass rounded-xl p-3">
+          <span class="text-xs text-slate-400">Contract paused</span>
+          <div class="flex gap-2">
+            <button id="btn-token-pause" class="text-xs px-3 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold">Pause</button>
+            <button id="btn-token-unpause" class="text-xs px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold">Unpause</button>
+          </div>
+        </div>
+
+        <p id="token-admin-status" class="text-xs mono text-slate-500 break-all"></p>
+      </div>
+    </div>
+
+    <!-- ---------------- NODE REGISTRY CONTROLS ---------------- -->
+    <div class="glass glass-border-glow rounded-3xl p-6">
+      <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="server" class="w-5 h-5 text-cyan-glow"></i> Node Registry</h2>
+      <p class="text-xs text-slate-400 mb-5">NodeRegistry.sol controls</p>
+
+      <div class="space-y-5">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Approve oracle address</label>
+          <div class="flex gap-2">
+            <input id="registry-oracle-addr" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+            <button id="btn-registry-set-oracle-true" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Allow</button>
+            <button id="btn-registry-set-oracle-false" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold px-3 whitespace-nowrap">Revoke</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Reward per kWh (wei $PWR)</label>
+          <div class="flex gap-2">
+            <input id="registry-reward-per-kwh" type="text" placeholder="e.g. 420000000000000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+            <button id="btn-registry-set-reward" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Max kWh per proof</label>
+          <div class="flex gap-2">
+            <input id="registry-max-kwh" type="number" min="1" placeholder="e.g. 500000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+            <button id="btn-registry-set-max-kwh" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Manual node status action</label>
+          <div class="flex gap-2">
+            <input id="registry-manual-node-id" type="number" min="1" placeholder="Node ID" class="w-24 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+            <button id="btn-registry-suspend" class="flex-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-semibold">Suspend</button>
+            <button id="btn-registry-reinstate" class="flex-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold">Reinstate</button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between glass rounded-xl p-3">
+          <span class="text-xs text-slate-400">Registrations paused</span>
+          <div class="flex gap-2">
+            <button id="btn-registry-pause" class="text-xs px-3 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold">Pause</button>
+            <button id="btn-registry-unpause" class="text-xs px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold">Unpause</button>
+          </div>
+        </div>
+
+        <p id="registry-admin-status" class="text-xs mono text-slate-500 break-all"></p>
+      </div>
+    </div>
+
+    <!-- ---------------- PRESALE CONTROLS ---------------- -->
+    <div class="glass glass-border-glow rounded-3xl p-6">
+      <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="rocket" class="w-5 h-5 text-emerald-glow"></i> Presale</h2>
+      <p class="text-xs text-slate-400 mb-5">PowerComputePresale.sol controls</p>
+
+      <div class="space-y-5">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Add phase (Configuring state only)</label>
+          <div class="grid grid-cols-2 gap-2">
+            <input id="presale-phase-price" type="text" placeholder="Price (wei/token)" class="glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+            <input id="presale-phase-cap" type="text" placeholder="Cap (wei)" class="glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+          </div>
+          <button id="btn-presale-add-phase" class="mt-2 w-full rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Add Phase</button>
+        </div>
+
+        <button id="btn-presale-start" class="w-full rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-charcoal text-xs font-semibold py-2.5">Start Presale</button>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Deposit $PWR for claims (requires approve first)</label>
+          <div class="flex gap-2">
+            <input id="presale-deposit-amount" type="number" min="0" placeholder="Amount $PWR" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+            <button id="btn-presale-approve" class="rounded-lg bg-slate-500/15 border border-slate-500/30 text-slate-300 text-xs font-semibold px-3 whitespace-nowrap">Approve</button>
+            <button id="btn-presale-deposit" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Deposit</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btn-presale-finalize" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2">Finalize</button>
+          <button id="btn-presale-cancel" class="rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold py-2">Cancel</button>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Withdraw raised ETH to</label>
+          <div class="flex gap-2">
+            <input id="presale-withdraw-to" type="text" placeholder="0x... (defaults to your wallet)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-emerald-glow" />
+            <button id="btn-presale-withdraw" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold px-3 whitespace-nowrap">Withdraw</button>
+          </div>
+        </div>
+
+        <p id="presale-admin-status" class="text-xs mono text-slate-500 break-all"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ACTIVITY LOG ================= -->
+  <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-bold text-lg flex items-center gap-2">
+        <i data-lucide="activity" class="w-5 h-5 text-emerald-glow"></i> Protocol Activity Log
+      </h2>
+      <button id="btn-refresh-activity" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+      </button>
+    </div>
+    <div class="overflow-x-auto scrollbar-thin max-h-[420px] overflow-y-auto">
+      <table class="pc-table">
+        <thead>
+          <tr><th>Event</th><th>Details</th><th>Tx Hash</th></tr>
+        </thead>
+        <tbody id="activity-log-tbody">
+          <tr><td colspan="3" class="text-center text-slate-500 py-8">Configure contract addresses to load recent on-chain events.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer class="mt-8 border-t border-white/5 px-5 lg:px-8 py-8 text-center">
+  <p class="text-xs text-slate-500">© 2026 PowerCompute Protocol. Testnet software — not for production funds. Admin actions are irreversible on-chain transactions — double-check inputs before confirming in your wallet.</p>
+</footer>
+
+<script src="./assets/js/config.js"></script>
+<script src="./assets/js/wallet.js"></script>
+
+<script>
+/* ==========================================================================
+   ADMIN.HTML — PROTOCOL ADMINISTRATION CONSOLE LOGIC
+   ========================================================================== */
+
+function pillForNodeStatusAdmin(statusIndex) {
+  const label = NODE_STATUS_LABELS[statusIndex] || "Unknown";
+  const map = { Pending: "pill-amber", Active: "pill-emerald", Suspended: "pill-red", Retired: "pill-slate" };
+  return `<span class="pill ${map[label] || 'pill-slate'}">${label}</span>`;
+}
+
+function updateAccessBanners() {
+  document.getElementById('banner-not-connected').classList.toggle('hidden', !!PC.address);
+  const configured = POWERCOMPUTE_CONFIG.tokenConfigured || POWERCOMPUTE_CONFIG.nodeRegistryConfigured || POWERCOMPUTE_CONFIG.presaleConfigured;
+  document.getElementById('banner-not-configured').classList.toggle('hidden', configured);
+  document.getElementById('banner-not-owner').classList.toggle('hidden', !PC.address || PC.isOwner);
+}
+
+/* -------------------------------------------------------------------------
+   Protocol overview stats (public reads — visible to everyone)
+   ------------------------------------------------------------------------- */
+async function loadOverview() {
+  const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
+
+  if (POWERCOMPUTE_CONFIG.tokenConfigured) {
+    try {
+      const token = new ethers.Contract(POWERCOMPUTE_CONFIG.TOKEN_ADDRESS, PWR_TOKEN_ABI, readProvider);
+      const [supply, staked, pool, emissions, decimals] = await Promise.all([
+        token.totalSupply(), token.totalStaked(), token.rewardsPool(), token.totalEmissionsMinted(), token.decimals()
+      ]);
+      document.getElementById('ov-total-supply').textContent = pcFmtToken(supply, decimals, 0);
+      document.getElementById('ov-total-staked').textContent = pcFmtToken(staked, decimals, 0);
+      document.getElementById('ov-rewards-pool').textContent = pcFmtToken(pool, decimals, 0);
+      document.getElementById('ov-emissions-minted').textContent = pcFmtToken(emissions, decimals, 0);
+    } catch (err) { console.error("Token overview read failed", err); }
+  }
+
+  if (POWERCOMPUTE_CONFIG.nodeRegistryConfigured) {
+    try {
+      const registry = new ethers.Contract(POWERCOMPUTE_CONFIG.NODE_REGISTRY_ADDRESS, NODE_REGISTRY_ABI, readProvider);
+      const [active, energy] = await Promise.all([registry.totalActiveNodes(), registry.totalEnergyRoutedKwh()]);
+      document.getElementById('ov-active-nodes').textContent = active.toString();
+      document.getElementById('ov-energy-routed').textContent = energy.toString();
+    } catch (err) { console.error("Registry overview read failed", err); }
+  }
+
+  if (POWERCOMPUTE_CONFIG.presaleConfigured) {
+    try {
+      const presale = new ethers.Contract(POWERCOMPUTE_CONFIG.PRESALE_ADDRESS, PRESALE_ABI, readProvider);
+      const [state, raised] = await Promise.all([presale.state(), presale.totalRaisedWei()]);
+      document.getElementById('ov-presale-state').textContent = PRESALE_STATE_LABELS[state] || "Unknown";
+      document.getElementById('ov-presale-raised').textContent = `${pcFmtEth(raised, 3)} ETH`;
+    } catch (err) { console.error("Presale overview read failed", err); }
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Pending node verification queue
+   ------------------------------------------------------------------------- */
+async function loadPendingNodes() {
+  const tbody = document.getElementById('pending-nodes-tbody');
+  if (!PC.nodeRegistryContract) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">NodeRegistry not configured.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = `<tr><td colspan="8" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
+
+  try {
+    const nextId = await PC.nodeRegistryContract.nextNodeId();
+    const total = Number(nextId.toString()) - 1;
+    if (total <= 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">No nodes registered on this network yet.</td></tr>`;
+      return;
+    }
+    const scanFrom = Math.max(1, total - 99);
+    const ids = [];
+    for (let i = total; i >= scanFrom; i--) ids.push(i);
+
+    const nodes = await Promise.all(ids.map(id => PC.nodeRegistryContract.getNode(id).then(n => ({ id, n }))));
+    const pending = nodes.filter(({ n }) => Number(n.status) === 0);
+
+    if (pending.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">No pending nodes awaiting verification.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = pending.map(({ id, n }) => `
+      <tr>
+        <td class="mono">#${id}</td>
+        <td class="mono text-xs">${pcShorten(n.operator)}</td>
+        <td>${n.gpuModel}</td>
+        <td class="mono">${n.gpuCount}</td>
+        <td>${n.region || "--"}</td>
+        <td class="mono text-xs">${n.energySiteId}</td>
+        <td class="text-xs mono">${pcFmtDate(n.registeredAt)}</td>
+        <td><button class="verify-node-btn text-xs px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold" data-node-id="${id}">Verify</button></td>
+      </tr>`).join("");
+
+    document.querySelectorAll('.verify-node-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleVerifyNode(btn.dataset.nodeId));
+    });
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-400 py-8">Failed to load queue: ${err.message || err}</td></tr>`;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Pending energy proof review queue
+   ------------------------------------------------------------------------- */
+async function loadPendingProofs() {
+  const tbody = document.getElementById('pending-proofs-tbody');
+  if (!PC.nodeRegistryContract) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">NodeRegistry not configured.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = `<tr><td colspan="8" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
+
+  try {
+    const nextId = await PC.nodeRegistryContract.nextProofId();
+    const total = Number(nextId.toString()) - 1;
+    if (total <= 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">No energy proofs submitted yet.</td></tr>`;
+      return;
+    }
+    const scanFrom = Math.max(1, total - 99);
+    const ids = [];
+    for (let i = total; i >= scanFrom; i--) ids.push(i);
+
+    const proofs = await Promise.all(ids.map(id => PC.nodeRegistryContract.getEnergyProof(id).then(p => ({ id, p }))));
+    const pending = proofs.filter(({ p }) => !p.approved && !p.rejected);
+
+    if (pending.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">No pending energy proofs awaiting review.</td></tr>`;
+      return;
+    }
+
+    const rewardPerKwh = await PC.nodeRegistryContract.rewardPerKwh();
+
+    tbody.innerHTML = pending.map(({ id, p }) => {
+      const estReward = ethers.BigNumber.from(p.kWhRouted).mul(rewardPerKwh);
+      return `
+      <tr>
+        <td class="mono">#${id}</td>
+        <td class="mono">#${p.nodeId.toString()}</td>
+        <td class="mono text-xs">${pcShorten(p.operator)}</td>
+        <td class="mono">${p.kWhRouted.toString()} kWh</td>
+        <td class="mono text-emerald-glow">${pcFmtToken(estReward, 18)} PWR</td>
+        <td class="text-xs mono">${pcFmtDate(p.periodStart)} → ${pcFmtDate(p.periodEnd)}</td>
+        <td class="text-xs mono">${pcFmtDate(p.submittedAt)}</td>
+        <td class="flex gap-2">
+          <button class="approve-proof-btn text-xs px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold" data-proof-id="${id}">Approve</button>
+          <button class="reject-proof-btn text-xs px-2.5 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold" data-proof-id="${id}">Reject</button>
+        </td>
+      </tr>`;
+    }).join("");
+
+    document.querySelectorAll('.approve-proof-btn').forEach(btn => btn.addEventListener('click', () => handleApproveProof(btn.dataset.proofId)));
+    document.querySelectorAll('.reject-proof-btn').forEach(btn => btn.addEventListener('click', () => handleRejectProof(btn.dataset.proofId)));
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-400 py-8">Failed to load queue: ${err.message || err}</td></tr>`;
+  }
+}
+
+async function handleVerifyNode(nodeId) {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+  try {
+    const tx = await PC.nodeRegistryContract.verifyNode(nodeId);
+    pcToast(`Verifying node #${nodeId}...`);
+    await tx.wait();
+    pcToast(`Node #${nodeId} verified and now Active.`, "success");
+    loadPendingNodes();
+    loadOverview();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Verification failed.", "error");
+  }
+}
+
+async function handleApproveProof(proofId) {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+  try {
+    const tx = await PC.nodeRegistryContract.approveEnergyProof(proofId);
+    pcToast(`Approving proof #${proofId}...`);
+    await tx.wait();
+    pcToast(`Proof #${proofId} approved — rewards minted to operator.`, "success");
+    loadPendingProofs();
+    loadOverview();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Approval failed.", "error");
+  }
+}
+
+async function handleRejectProof(proofId) {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+  const reason = prompt("Reason for rejecting this proof (recorded on-chain):", "Meter cross-check failed");
+  if (reason === null) return;
+  try {
+    const tx = await PC.nodeRegistryContract.rejectEnergyProof(proofId, reason);
+    pcToast(`Rejecting proof #${proofId}...`);
+    await tx.wait();
+    pcToast(`Proof #${proofId} rejected.`, "success");
+    loadPendingProofs();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Rejection failed.", "error");
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Token admin actions
+   ------------------------------------------------------------------------- */
+function tokenStatus(msg) { document.getElementById('token-admin-status').textContent = msg; }
+
+async function withTokenAdmin(label, fn) {
+  if (!pcRequire(PC.tokenContract, "PowerComputeToken")) return;
+  try {
+    tokenStatus(`Submitting ${label}...`);
+    const tx = await fn();
+    tokenStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    tokenStatus(`${label} confirmed: ${tx.hash}`);
+    pcToast(`${label} successful.`, "success");
+    loadOverview();
+  } catch (err) {
+    console.error(err);
+    tokenStatus(err.reason || err.message || `${label} failed.`);
+    pcToast(`${label} failed.`, "error");
+  }
+}
+
+function wireTokenControls() {
+  document.getElementById('btn-token-mint').addEventListener('click', () => {
+    const to = document.getElementById('token-mint-to').value.trim();
+    const amount = document.getElementById('token-mint-amount').value;
+    if (!ethers.utils.isAddress(to) || !amount) { pcToast("Enter a valid recipient and amount.", "error"); return; }
+    withTokenAdmin("Mint", () => PC.tokenContract.mint(to, ethers.utils.parseUnits(amount, 18)));
+  });
+
+  document.getElementById('btn-token-set-minter-true').addEventListener('click', () => {
+    const addr = document.getElementById('token-minter-addr').value.trim();
+    if (!ethers.utils.isAddress(addr)) { pcToast("Enter a valid address.", "error"); return; }
+    withTokenAdmin("Approve minter", () => PC.tokenContract.setMinter(addr, true));
+  });
+  document.getElementById('btn-token-set-minter-false').addEventListener('click', () => {
+    const addr = document.getElementById('token-minter-addr').value.trim();
+    if (!ethers.utils.isAddress(addr)) { pcToast("Enter a valid address.", "error"); return; }
+    withTokenAdmin("Revoke minter", () => PC.tokenContract.setMinter(addr, false));
+  });
+  document.getElementById('btn-token-set-minter-registry').addEventListener('click', () => {
+    document.getElementById('token-minter-addr').value = POWERCOMPUTE_CONFIG.NODE_REGISTRY_ADDRESS;
+  });
+
+  document.getElementById('btn-token-fund').addEventListener('click', () => {
+    const amount = document.getElementById('token-fund-amount').value;
+    if (!amount || parseFloat(amount) <= 0) { pcToast("Enter a valid amount.", "error"); return; }
+    withTokenAdmin("Fund rewards pool", () => PC.tokenContract.fundRewardsPool(ethers.utils.parseUnits(amount, 18)));
+  });
+
+  document.getElementById('btn-token-set-rate').addEventListener('click', () => {
+    const rate = document.getElementById('token-reward-rate').value.trim();
+    if (!rate) { pcToast("Enter a reward rate in wei/second.", "error"); return; }
+    withTokenAdmin("Set reward rate", () => PC.tokenContract.setRewardRatePerSecond(rate));
+  });
+
+  document.getElementById('btn-token-set-cooldown').addEventListener('click', () => {
+    const seconds = document.getElementById('token-cooldown').value;
+    if (seconds === "") { pcToast("Enter a cooldown in seconds.", "error"); return; }
+    withTokenAdmin("Set unstake cooldown", () => PC.tokenContract.setUnstakeCooldown(seconds));
+  });
+
+  document.getElementById('btn-token-pause').addEventListener('click', () => withTokenAdmin("Pause token", () => PC.tokenContract.pause()));
+  document.getElementById('btn-token-unpause').addEventListener('click', () => withTokenAdmin("Unpause token", () => PC.tokenContract.unpause()));
+}
+
+/* -------------------------------------------------------------------------
+   Node registry admin actions
+   ------------------------------------------------------------------------- */
+function registryStatus(msg) { document.getElementById('registry-admin-status').textContent = msg; }
+
+async function withRegistryAdmin(label, fn) {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+  try {
+    registryStatus(`Submitting ${label}...`);
+    const tx = await fn();
+    registryStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    registryStatus(`${label} confirmed: ${tx.hash}`);
+    pcToast(`${label} successful.`, "success");
+    loadOverview();
+    loadPendingNodes();
+  } catch (err) {
+    console.error(err);
+    registryStatus(err.reason || err.message || `${label} failed.`);
+    pcToast(`${label} failed.`, "error");
+  }
+}
+
+function wireRegistryControls() {
+  document.getElementById('btn-registry-set-oracle-true').addEventListener('click', () => {
+    const addr = document.getElementById('registry-oracle-addr').value.trim();
+    if (!ethers.utils.isAddress(addr)) { pcToast("Enter a valid address.", "error"); return; }
+    withRegistryAdmin("Approve oracle", () => PC.nodeRegistryContract.setOracle(addr, true));
+  });
+  document.getElementById('btn-registry-set-oracle-false').addEventListener('click', () => {
+    const addr = document.getElementById('registry-oracle-addr').value.trim();
+    if (!ethers.utils.isAddress(addr)) { pcToast("Enter a valid address.", "error"); return; }
+    withRegistryAdmin("Revoke oracle", () => PC.nodeRegistryContract.setOracle(addr, false));
+  });
+
+  document.getElementById('btn-registry-set-reward').addEventListener('click', () => {
+    const rate = document.getElementById('registry-reward-per-kwh').value.trim();
+    if (!rate) { pcToast("Enter a reward rate in wei per kWh.", "error"); return; }
+    withRegistryAdmin("Set reward per kWh", () => PC.nodeRegistryContract.setRewardPerKwh(rate));
+  });
+
+  document.getElementById('btn-registry-set-max-kwh').addEventListener('click', () => {
+    const max = document.getElementById('registry-max-kwh').value;
+    if (!max || parseFloat(max) <= 0) { pcToast("Enter a valid max kWh.", "error"); return; }
+    withRegistryAdmin("Set max kWh per proof", () => PC.nodeRegistryContract.setMaxKwhPerProof(max));
+  });
+
+  document.getElementById('btn-registry-suspend').addEventListener('click', () => {
+    const id = document.getElementById('registry-manual-node-id').value;
+    if (!id) { pcToast("Enter a node ID.", "error"); return; }
+    withRegistryAdmin("Suspend node", () => PC.nodeRegistryContract.suspendNode(id));
+  });
+  document.getElementById('btn-registry-reinstate').addEventListener('click', () => {
+    const id = document.getElementById('registry-manual-node-id').value;
+    if (!id) { pcToast("Enter a node ID.", "error"); return; }
+    withRegistryAdmin("Reinstate node", () => PC.nodeRegistryContract.reinstateNode(id));
+  });
+
+  document.getElementById('btn-registry-pause').addEventListener('click', () => withRegistryAdmin("Pause registry", () => PC.nodeRegistryContract.pause()));
+  document.getElementById('btn-registry-unpause').addEventListener('click', () => withRegistryAdmin("Unpause registry", () => PC.nodeRegistryContract.unpause()));
+}
+
+/* -------------------------------------------------------------------------
+   Presale admin actions
+   ------------------------------------------------------------------------- */
+function presaleStatus(msg) { document.getElementById('presale-admin-status').textContent = msg; }
+
+async function withPresaleAdmin(label, fn) {
+  if (!pcRequire(PC.presaleContract, "PowerComputePresale")) return;
+  try {
+    presaleStatus(`Submitting ${label}...`);
+    const tx = await fn();
+    presaleStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    presaleStatus(`${label} confirmed: ${tx.hash}`);
+    pcToast(`${label} successful.`, "success");
+    loadOverview();
+  } catch (err) {
+    console.error(err);
+    presaleStatus(err.reason || err.message || `${label} failed.`);
+    pcToast(`${label} failed.`, "error");
+  }
+}
+
+function wirePresaleControls() {
+  document.getElementById('btn-presale-add-phase').addEventListener('click', () => {
+    const price = document.getElementById('presale-phase-price').value.trim();
+    const cap = document.getElementById('presale-phase-cap').value.trim();
+    if (!price || !cap) { pcToast("Enter both price and cap in wei.", "error"); return; }
+    withPresaleAdmin("Add phase", () => PC.presaleContract.addPhase(price, cap));
+  });
+
+  document.getElementById('btn-presale-start').addEventListener('click', () => withPresaleAdmin("Start presale", () => PC.presaleContract.startPresale()));
+
+  document.getElementById('btn-presale-approve').addEventListener('click', () => {
+    const amount = document.getElementById('presale-deposit-amount').value;
+    if (!amount || !pcRequire(PC.tokenContract, "PowerComputeToken")) return;
+    withPresaleAdmin("Approve $PWR for presale", () => PC.tokenContract.approve(POWERCOMPUTE_CONFIG.PRESALE_ADDRESS, ethers.utils.parseUnits(amount, 18)));
+  });
+  document.getElementById('btn-presale-deposit').addEventListener('click', () => {
+    const amount = document.getElementById('presale-deposit-amount').value;
+    if (!amount || parseFloat(amount) <= 0) { pcToast("Enter a valid amount.", "error"); return; }
+    withPresaleAdmin("Deposit $PWR for claims", () => PC.presaleContract.depositTokensForClaims(ethers.utils.parseUnits(amount, 18)));
+  });
+
+  document.getElementById('btn-presale-finalize').addEventListener('click', () => withPresaleAdmin("Finalize presale", () => PC.presaleContract.finalize()));
+  document.getElementById('btn-presale-cancel').addEventListener('click', () => {
+    if (!confirm("Cancel the presale? Contributors will be able to claim refunds. This cannot be undone.")) return;
+    withPresaleAdmin("Cancel presale", () => PC.presaleContract.cancelPresale());
+  });
+
+  document.getElementById('btn-presale-withdraw').addEventListener('click', () => {
+    const to = document.getElementById('presale-withdraw-to').value.trim() || PC.address;
+    if (!ethers.utils.isAddress(to)) { pcToast("Enter a valid recipient address.", "error"); return; }
+    withPresaleAdmin("Withdraw raised ETH", () => PC.presaleContract.withdrawRaisedFunds(to));
+  });
+}
+
+/* -------------------------------------------------------------------------
+   Activity log — recent on-chain events across all 3 contracts
+   ------------------------------------------------------------------------- */
+async function loadActivityLog() {
+  const tbody = document.getElementById('activity-log-tbody');
+
+  if (!POWERCOMPUTE_CONFIG.tokenConfigured && !POWERCOMPUTE_CONFIG.nodeRegistryConfigured && !POWERCOMPUTE_CONFIG.presaleConfigured) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-slate-500 py-8">Configure contract addresses to load recent on-chain events.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = `<tr><td colspan="3" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
+
+  try {
+    const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
+    const latestBlock = await readProvider.getBlockNumber();
+    const fromBlock = Math.max(0, latestBlock - 50000); // bounded lookback window for testnet RPC limits
+
+    let events = [];
+
+    if (POWERCOMPUTE_CONFIG.tokenConfigured) {
+      const token = new ethers.Contract(POWERCOMPUTE_CONFIG.TOKEN_ADDRESS, PWR_TOKEN_ABI, readProvider);
+      const [staked, unstaked, claimed, emitted] = await Promise.all([
+        token.queryFilter(token.filters.Staked(), fromBlock, latestBlock).catch(() => []),
+        token.queryFilter(token.filters.Unstaked(), fromBlock, latestBlock).catch(() => []),
+        token.queryFilter(token.filters.RewardsClaimed(), fromBlock, latestBlock).catch(() => []),
+        token.queryFilter(token.filters.EmissionMinted(), fromBlock, latestBlock).catch(() => [])
+      ]);
+      events.push(...staked.map(e => ({ name: "Staked", details: `${pcShorten(e.args.user)} staked ${pcFmtToken(e.args.amount, 18)} PWR`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...unstaked.map(e => ({ name: "Unstaked", details: `${pcShorten(e.args.user)} unstaked ${pcFmtToken(e.args.amount, 18)} PWR`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...claimed.map(e => ({ name: "RewardsClaimed", details: `${pcShorten(e.args.user)} claimed ${pcFmtToken(e.args.amount, 18)} PWR`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...emitted.map(e => ({ name: "EmissionMinted", details: `${pcFmtToken(e.args.amount, 18)} PWR minted to ${pcShorten(e.args.to)}`, hash: e.transactionHash, block: e.blockNumber })));
+    }
+
+    if (POWERCOMPUTE_CONFIG.nodeRegistryConfigured) {
+      const registry = new ethers.Contract(POWERCOMPUTE_CONFIG.NODE_REGISTRY_ADDRESS, NODE_REGISTRY_ABI, readProvider);
+      const [registered, verified, approved, rejected] = await Promise.all([
+        registry.queryFilter(registry.filters.NodeRegistered(), fromBlock, latestBlock).catch(() => []),
+        registry.queryFilter(registry.filters.NodeVerified(), fromBlock, latestBlock).catch(() => []),
+        registry.queryFilter(registry.filters.EnergyProofApproved(), fromBlock, latestBlock).catch(() => []),
+        registry.queryFilter(registry.filters.EnergyProofRejected(), fromBlock, latestBlock).catch(() => [])
+      ]);
+      events.push(...registered.map(e => ({ name: "NodeRegistered", details: `Node #${e.args.nodeId.toString()} (${e.args.gpuModel}) by ${pcShorten(e.args.operator)}`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...verified.map(e => ({ name: "NodeVerified", details: `Node #${e.args.nodeId.toString()} verified`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...approved.map(e => ({ name: "EnergyProofApproved", details: `Proof for node #${e.args.nodeId.toString()} → ${pcFmtToken(e.args.rewardMinted, 18)} PWR to ${pcShorten(e.args.operator)}`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...rejected.map(e => ({ name: "EnergyProofRejected", details: `Proof #${e.args.proofId.toString()} rejected: ${e.args.reason}`, hash: e.transactionHash, block: e.blockNumber })));
+    }
+
+    if (POWERCOMPUTE_CONFIG.presaleConfigured) {
+      const presale = new ethers.Contract(POWERCOMPUTE_CONFIG.PRESALE_ADDRESS, PRESALE_ABI, readProvider);
+      const [contributed, claimed2] = await Promise.all([
+        presale.queryFilter(presale.filters.Contributed(), fromBlock, latestBlock).catch(() => []),
+        presale.queryFilter(presale.filters.Claimed(), fromBlock, latestBlock).catch(() => [])
+      ]);
+      events.push(...contributed.map(e => ({ name: "Contributed", details: `${pcShorten(e.args.contributor)} contributed ${pcFmtEth(e.args.weiAmount, 4)} ETH`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...claimed2.map(e => ({ name: "Claimed", details: `${pcShorten(e.args.contributor)} claimed ${pcFmtToken(e.args.tokenAmount, 18)} PWR`, hash: e.transactionHash, block: e.blockNumber })));
+    }
+
+    events.sort((a, b) => b.block - a.block);
+    events = events.slice(0, 40);
+
+    if (events.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="text-center text-slate-500 py-8">No recent events found in the last ~50,000 blocks.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = events.map(e => `
+      <tr>
+        <td><span class="pill pill-cyan">${e.name}</span></td>
+        <td class="text-xs">${e.details}</td>
+        <td class="mono text-xs"><a href="https://sepolia.basescan.org/tx/${e.hash}" target="_blank" rel="noopener noreferrer" class="text-emerald-glow hover:underline">${pcShorten(e.hash)}</a></td>
+      </tr>`).join("");
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-red-400 py-8">Failed to load activity log: ${err.message || err}</td></tr>`;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Bootstrap
+   ------------------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+  updateAccessBanners();
+  loadOverview();
+  loadActivityLog();
+
+  wireTokenControls();
+  wireRegistryControls();
+  wirePresaleControls();
+
+  document.getElementById('btn-refresh-pending-nodes').addEventListener('click', loadPendingNodes);
+  document.getElementById('btn-refresh-pending-proofs').addEventListener('click', loadPendingProofs);
+  document.getElementById('btn-refresh-activity').addEventListener('click', loadActivityLog);
+
+  pcOnConnect(() => {
+    updateAccessBanners();
+    loadPendingNodes();
+    loadPendingProofs();
+    loadOverview();
+  });
+
+  pcRenderIcons();
+});
+</script>
+</body>
+</html>

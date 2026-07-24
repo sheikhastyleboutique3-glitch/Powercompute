@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Node Operator Dashboard — PowerCompute ($PWR)</title>
+<meta name="description" content="Register your GPU compute node, submit Proof-of-Energy-Consumption reports, and track $PWR rewards on the PowerCompute network." />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/style.css">
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { charcoal: '#090D16', panel: '#0E1526' },
+        fontFamily: {
+          sans: ['Space Grotesk', 'ui-sans-serif', 'system-ui'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+        },
+        boxShadow: {
+          'glow-emerald': '0 0 20px rgba(16,185,129,0.35), 0 0 60px rgba(16,185,129,0.08)',
+          'glow-cyan': '0 0 20px rgba(6,182,212,0.35), 0 0 60px rgba(6,182,212,0.08)'
+        }
+      }
+    }
+  }
+</script>
+</head>
+
+<body class="bg-charcoal text-slate-200 antialiased">
+
+<div class="fixed inset-0 -z-10 bg-charcoal">
+  <div class="absolute inset-0 bg-grid animate-grid-move opacity-60"></div>
+  <div class="absolute -top-40 -left-40 w-[36rem] h-[36rem] bg-emerald-500/20 rounded-full blur-[120px]"></div>
+  <div class="absolute top-1/3 -right-40 w-[36rem] h-[36rem] bg-cyan-500/15 rounded-full blur-[130px]"></div>
+</div>
+
+<!-- ================= NAVBAR ================= -->
+<header class="sticky top-0 z-50 border-b border-white/5 backdrop-blur-xl bg-charcoal/70">
+  <div class="max-w-7xl mx-auto px-5 lg:px-8 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5 font-bold text-lg">
+      <span class="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-glow-emerald">
+        <i data-lucide="zap" class="w-5 h-5 text-charcoal"></i>
+      </span>
+      <span>Power<span class="text-gradient">Compute</span></span>
+    </a>
+    <nav class="hidden md:flex items-center gap-7 text-sm text-slate-300">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="index.html#staking" class="nav-link">Staking</a>
+      <a href="dashboard.html" class="nav-link active flex items-center gap-1.5"><i data-lucide="server" class="w-3.5 h-3.5"></i>Node Dashboard</a>
+      <a href="admin.html" class="nav-link flex items-center gap-1.5"><i data-lucide="shield" class="w-3.5 h-3.5"></i>Admin</a>
+    </nav>
+    <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+      <i data-lucide="wallet" class="w-4 h-4"></i>
+      <span data-wallet-label>Connect Wallet</span>
+    </button>
+    <button id="mobile-menu-btn" class="md:hidden text-slate-300">
+      <i data-lucide="menu" class="w-6 h-6"></i>
+    </button>
+  </div>
+  <div id="mobile-menu" class="hidden md:hidden border-t border-white/5 bg-charcoal/95 px-5 py-4 space-y-3 text-sm">
+    <a href="index.html" class="block text-slate-300">Home</a>
+    <a href="index.html#staking" class="block text-slate-300">Staking</a>
+    <a href="dashboard.html" class="block text-slate-300">Node Dashboard</a>
+    <a href="admin.html" class="block text-slate-300">Admin Panel</a>
+    <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
+      <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
+    </button>
+  </div>
+</header>
+
+<main class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+
+  <!-- ================= PAGE HEADER ================= -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div>
+      <div class="glass glass-border-glow rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-mono text-emerald-glow w-fit mb-3">
+        <i data-lucide="server" class="w-3.5 h-3.5"></i> Node Operator Console
+      </div>
+      <h1 class="text-3xl lg:text-4xl font-bold">Node Dashboard</h1>
+      <p class="text-slate-400 text-sm mt-1">Register GPU nodes, submit Proof-of-Energy-Consumption (PoEC) reports, and track your $PWR rewards.</p>
+    </div>
+    <p data-wallet-status class="text-xs mono text-slate-500"></p>
+  </div>
+
+  <!-- ================= NOT CONNECTED NOTICE ================= -->
+  <div id="not-connected-banner" class="glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
+    <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 shrink-0"></i>
+    <p class="text-sm text-slate-300">Connect your wallet to register a node, submit energy proofs, and view your rewards.</p>
+  </div>
+
+  <!-- ================= OPERATOR SUMMARY ================= -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="server" class="w-5 h-5 text-emerald-glow mb-2"></i>
+      <p class="text-2xl font-bold mono" id="stat-my-nodes">0</p>
+      <p class="text-xs text-slate-400 mt-1">My Registered Nodes</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="battery-charging" class="w-5 h-5 text-cyan-glow mb-2"></i>
+      <p class="text-2xl font-bold mono" id="stat-my-energy">0</p>
+      <p class="text-xs text-slate-400 mt-1">Energy Routed (kWh)</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="coins" class="w-5 h-5 text-emerald-glow mb-2"></i>
+      <p class="text-2xl font-bold mono" id="stat-my-rewards">0</p>
+      <p class="text-xs text-slate-400 mt-1">Total $PWR Earned</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="wallet" class="w-5 h-5 text-cyan-glow mb-2"></i>
+      <p class="text-2xl font-bold mono" id="stat-my-balance">--</p>
+      <p class="text-xs text-slate-400 mt-1">Wallet $PWR Balance</p>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-6 mb-10">
+
+    <!-- ================= REGISTER NODE ================= -->
+    <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+      <h2 class="font-bold text-lg mb-1 flex items-center gap-2">
+        <i data-lucide="plus-circle" class="w-5 h-5 text-emerald-glow"></i> Register a New Node
+      </h2>
+      <p class="text-xs text-slate-400 mb-5">Submitted nodes start as <span class="pill pill-amber">Pending</span> until an oracle verifies your hardware &amp; energy-site attestation.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">GPU Model</label>
+          <input id="reg-gpu-model" type="text" placeholder="e.g. NVIDIA H100 80GB SXM5" class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1.5">GPU Count</label>
+            <input id="reg-gpu-count" type="number" min="1" value="8" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1.5">Region</label>
+            <input id="reg-region" type="text" placeholder="e.g. Texas, USA" class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Renewable Energy Site ID</label>
+          <input id="reg-site-id" type="text" placeholder="e.g. WIND-TX-004 or SOLAR-CA-112" class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10" />
+        </div>
+        <button id="btn-register-node" class="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition flex items-center justify-center gap-2">
+          <i data-lucide="server" class="w-4 h-4"></i> Register Node
+        </button>
+        <p id="register-tx-status" class="text-xs mono text-slate-500 break-all"></p>
+      </div>
+    </div>
+
+    <!-- ================= SUBMIT ENERGY PROOF ================= -->
+    <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+      <h2 class="font-bold text-lg mb-1 flex items-center gap-2">
+        <i data-lucide="file-check-2" class="w-5 h-5 text-cyan-glow"></i> Submit Energy Proof (PoEC)
+      </h2>
+      <p class="text-xs text-slate-400 mb-5">Report kWh of curtailed renewable energy routed to AI compute during a reporting period. Requires an <span class="pill pill-emerald">Active</span> node.</p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">Node ID</label>
+          <select id="proof-node-id" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-cyan-glow border border-white/10">
+            <option value="">Select one of your active nodes...</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400 block mb-1.5">kWh Routed This Period</label>
+          <input id="proof-kwh" type="number" min="1" placeholder="e.g. 4200" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-cyan-glow border border-white/10" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1.5">Period Start</label>
+            <input id="proof-period-start" type="datetime-local" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-cyan-glow border border-white/10" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1.5">Period End</label>
+            <input id="proof-period-end" type="datetime-local" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-cyan-glow border border-white/10" />
+          </div>
+        </div>
+        <button id="btn-submit-proof" class="w-full rounded-xl glass glass-border-glow px-6 py-3 font-semibold text-slate-100 hover:shadow-glow-cyan transition flex items-center justify-center gap-2">
+          <i data-lucide="upload" class="w-4 h-4 text-cyan-glow"></i> Submit Energy Proof
+        </button>
+        <p id="proof-tx-status" class="text-xs mono text-slate-500 break-all"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MY NODES TABLE ================= -->
+  <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7 mb-10">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-bold text-lg flex items-center gap-2">
+        <i data-lucide="list" class="w-5 h-5 text-emerald-glow"></i> My Nodes
+      </h2>
+      <button id="btn-refresh-nodes" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+      </button>
+    </div>
+    <div class="overflow-x-auto scrollbar-thin">
+      <table class="pc-table">
+        <thead>
+          <tr>
+            <th>Node ID</th>
+            <th>GPU Model</th>
+            <th>GPUs</th>
+            <th>Region</th>
+            <th>Energy Site</th>
+            <th>Status</th>
+            <th>Energy Routed</th>
+            <th>Rewards Earned</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="my-nodes-tbody">
+          <tr><td colspan="9" class="text-center text-slate-500 py-8">Connect your wallet to load your nodes.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= MY ENERGY PROOFS TABLE ================= -->
+  <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-bold text-lg flex items-center gap-2">
+        <i data-lucide="file-text" class="w-5 h-5 text-cyan-glow"></i> My Recent Energy Proofs
+      </h2>
+      <button id="btn-refresh-proofs" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+      </button>
+    </div>
+    <div class="overflow-x-auto scrollbar-thin">
+      <table class="pc-table">
+        <thead>
+          <tr>
+            <th>Proof ID</th>
+            <th>Node ID</th>
+            <th>kWh Routed</th>
+            <th>Period</th>
+            <th>Status</th>
+            <th>Reward Minted</th>
+            <th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody id="my-proofs-tbody">
+          <tr><td colspan="7" class="text-center text-slate-500 py-8">Connect your wallet to load your energy proofs.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= HELP CARD ================= -->
+  <div class="glass glass-border-glow rounded-2xl p-5 mt-8 flex items-start gap-3">
+    <i data-lucide="info" class="w-5 h-5 text-cyan-glow shrink-0 mt-0.5"></i>
+    <p class="text-xs text-slate-400 leading-relaxed">
+      New here? 1) Register a node with your GPU hardware and renewable energy site details. 2) Wait for an oracle/admin
+      to verify it from the <a href="admin.html" class="text-emerald-glow underline">Admin Panel</a> (status flips to Active).
+      3) Submit an energy proof for a completed reporting period. 4) Once an oracle approves the proof, $PWR rewards are
+      minted directly to your wallet — no manual claim needed for node rewards (only for staking rewards and presale
+      allocations, which use their own claim buttons on the <a href="index.html#staking" class="text-emerald-glow underline">Home page</a>).
+    </p>
+  </div>
+</main>
+
+<footer class="mt-4 border-t border-white/5 px-5 lg:px-8 py-8 text-center">
+  <p class="text-xs text-slate-500">© 2026 PowerCompute Protocol. Testnet software — not for production funds.</p>
+</footer>
+
+<script src="./assets/js/config.js"></script>
+<script src="./assets/js/wallet.js"></script>
+
+<script>
+/* ==========================================================================
+   DASHBOARD.HTML — NODE OPERATOR PORTAL LOGIC
+   ========================================================================== */
+
+let myNodeIds = [];
+
+function pillForNodeStatus(statusIndex) {
+  const label = NODE_STATUS_LABELS[statusIndex] || "Unknown";
+  const map = { Pending: "pill-amber", Active: "pill-emerald", Suspended: "pill-red", Retired: "pill-slate" };
+  return `<span class="pill ${map[label] || 'pill-slate'}">${label}</span>`;
+}
+
+function toggleConnectedUI() {
+  const banner = document.getElementById('not-connected-banner');
+  banner.classList.toggle('hidden', !!PC.address);
+}
+
+/* -------------------------------------------------------------------------
+   Load "my nodes" + populate the energy-proof node selector + summary stats
+   ------------------------------------------------------------------------- */
+async function loadMyNodes() {
+  const tbody = document.getElementById('my-nodes-tbody');
+  const select = document.getElementById('proof-node-id');
+
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) {
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">${PC.address ? "NodeRegistry contract not configured yet." : "Connect your wallet to load your nodes."}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = `<tr><td colspan="9" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
+
+  try {
+    const ids = await PC.nodeRegistryContract.getNodesByOperator(PC.address);
+    myNodeIds = ids.map(id => id.toString());
+
+    if (myNodeIds.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">You haven't registered any nodes yet — use the form above.</td></tr>`;
+      select.innerHTML = `<option value="">No nodes registered yet</option>`;
+      document.getElementById('stat-my-nodes').textContent = "0";
+      document.getElementById('stat-my-energy').textContent = "0";
+      document.getElementById('stat-my-rewards').textContent = "0";
+      return;
+    }
+
+    const nodes = await Promise.all(myNodeIds.map(id => PC.nodeRegistryContract.getNode(id)));
+
+    let totalEnergy = 0n;
+    let totalRewards = 0n;
+    let rowsHtml = "";
+    let selectHtml = `<option value="">Select one of your active nodes...</option>`;
+
+    nodes.forEach((node, idx) => {
+      const nodeId = myNodeIds[idx];
+      totalEnergy += BigInt(node.totalEnergyRoutedKwh.toString());
+      totalRewards += BigInt(node.totalRewardsEarned.toString());
+
+      rowsHtml += `
+        <tr>
+          <td class="mono">#${nodeId}</td>
+          <td>${node.gpuModel}</td>
+          <td class="mono">${node.gpuCount}</td>
+          <td>${node.region || "--"}</td>
+          <td class="mono text-xs">${node.energySiteId}</td>
+          <td>${pillForNodeStatus(node.status)}</td>
+          <td class="mono">${node.totalEnergyRoutedKwh.toString()} kWh</td>
+          <td class="mono text-emerald-glow">${pcFmtToken(node.totalRewardsEarned, 18)} PWR</td>
+          <td>
+            ${Number(node.status) !== 3 ? `<button class="text-xs text-red-400 hover:text-red-300 retire-node-btn" data-node-id="${nodeId}">Retire</button>` : `<span class="text-xs text-slate-600">--</span>`}
+          </td>
+        </tr>`;
+
+      if (Number(node.status) === 1) {
+        selectHtml += `<option value="${nodeId}">#${nodeId} — ${node.gpuModel} (${node.region || "unknown region"})</option>`;
+      }
+    });
+
+    tbody.innerHTML = rowsHtml;
+    select.innerHTML = selectHtml;
+
+    document.getElementById('stat-my-nodes').textContent = myNodeIds.length.toString();
+    document.getElementById('stat-my-energy').textContent = totalEnergy.toString();
+    document.getElementById('stat-my-rewards').textContent = pcFmtToken(ethers.BigNumber.from(totalRewards.toString()), 18);
+
+    document.querySelectorAll('.retire-node-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleRetireNode(btn.dataset.nodeId));
+    });
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-red-400 py-8">Failed to load nodes: ${err.message || err}</td></tr>`;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Load "my energy proofs" — scans recent proof IDs and filters by operator
+   (bounded scan since this is a simple registry without proof-by-operator
+   indexing; fine for testnet volumes).
+   ------------------------------------------------------------------------- */
+async function loadMyProofs() {
+  const tbody = document.getElementById('my-proofs-tbody');
+
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-500 py-8">${PC.address ? "NodeRegistry contract not configured yet." : "Connect your wallet to load your energy proofs."}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = `<tr><td colspan="7" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
+
+  try {
+    const nextProofId = await PC.nodeRegistryContract.nextProofId();
+    const total = Number(nextProofId.toString()) - 1;
+    if (total <= 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-500 py-8">No energy proofs submitted on this network yet.</td></tr>`;
+      return;
+    }
+
+    const scanFrom = Math.max(1, total - 49); // last 50 proofs, newest-first scan
+    const idsToScan = [];
+    for (let i = total; i >= scanFrom; i--) idsToScan.push(i);
+
+    const proofs = await Promise.all(idsToScan.map(id => PC.nodeRegistryContract.getEnergyProof(id).then(p => ({ id, p }))));
+    const mine = proofs.filter(({ p }) => p.operator.toLowerCase() === PC.address.toLowerCase());
+
+    if (mine.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-500 py-8">No energy proofs found for your wallet in the last 50 submissions.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = mine.map(({ id, p }) => {
+      let statusPill = `<span class="pill pill-amber">Pending Review</span>`;
+      if (p.approved) statusPill = `<span class="pill pill-emerald">Approved</span>`;
+      if (p.rejected) statusPill = `<span class="pill pill-red">Rejected</span>`;
+
+      return `
+        <tr>
+          <td class="mono">#${id}</td>
+          <td class="mono">#${p.nodeId.toString()}</td>
+          <td class="mono">${p.kWhRouted.toString()} kWh</td>
+          <td class="text-xs mono">${pcFmtDate(p.periodStart)} → ${pcFmtDate(p.periodEnd)}</td>
+          <td>${statusPill}</td>
+          <td class="mono text-emerald-glow">${p.approved ? pcFmtToken(p.rewardMinted, 18) + " PWR" : "--"}</td>
+          <td class="text-xs mono">${pcFmtDate(p.submittedAt)}</td>
+        </tr>`;
+    }).join("");
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-red-400 py-8">Failed to load proofs: ${err.message || err}</td></tr>`;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Wallet $PWR balance for the summary row
+   ------------------------------------------------------------------------- */
+async function loadWalletBalance() {
+  if (!PC.tokenContract || !PC.address) {
+    document.getElementById('stat-my-balance').textContent = "--";
+    return;
+  }
+  try {
+    const [bal, decimals, symbol] = await Promise.all([
+      PC.tokenContract.balanceOf(PC.address),
+      PC.tokenContract.decimals(),
+      PC.tokenContract.symbol()
+    ]);
+    document.getElementById('stat-my-balance').textContent = `${pcFmtToken(bal, decimals)} ${symbol}`;
+  } catch (err) {
+    document.getElementById('stat-my-balance').textContent = "Read error";
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Actions: register node / submit proof / retire node
+   ------------------------------------------------------------------------- */
+async function handleRegisterNode() {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+
+  const gpuModel = document.getElementById('reg-gpu-model').value.trim();
+  const gpuCount = parseInt(document.getElementById('reg-gpu-count').value, 10);
+  const region = document.getElementById('reg-region').value.trim();
+  const siteId = document.getElementById('reg-site-id').value.trim();
+
+  if (!gpuModel || !siteId || !gpuCount || gpuCount <= 0) {
+    pcToast("Fill in GPU model, GPU count, and energy site ID.", "error");
+    return;
+  }
+
+  const statusEl = document.getElementById('register-tx-status');
+  try {
+    statusEl.textContent = "Submitting registration...";
+    const tx = await PC.nodeRegistryContract.registerNode(gpuModel, gpuCount, siteId, region || "Unspecified");
+    statusEl.textContent = `Tx submitted: ${tx.hash}`;
+    await tx.wait();
+    statusEl.textContent = `Node registered: ${tx.hash}`;
+    pcToast("Node registered! Awaiting oracle verification.", "success");
+    document.getElementById('reg-gpu-model').value = "";
+    document.getElementById('reg-region').value = "";
+    document.getElementById('reg-site-id').value = "";
+    loadMyNodes();
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = err.reason || err.message || "Transaction failed.";
+    pcToast("Node registration failed.", "error");
+  }
+}
+
+async function handleSubmitProof() {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+
+  const nodeId = document.getElementById('proof-node-id').value;
+  const kwh = document.getElementById('proof-kwh').value;
+  const periodStartInput = document.getElementById('proof-period-start').value;
+  const periodEndInput = document.getElementById('proof-period-end').value;
+
+  if (!nodeId) { pcToast("Select an active node.", "error"); return; }
+  if (!kwh || parseFloat(kwh) <= 0) { pcToast("Enter a valid kWh amount.", "error"); return; }
+  if (!periodStartInput || !periodEndInput) { pcToast("Select a period start and end.", "error"); return; }
+
+  const periodStart = Math.floor(new Date(periodStartInput).getTime() / 1000);
+  const periodEnd = Math.floor(new Date(periodEndInput).getTime() / 1000);
+
+  if (periodEnd <= periodStart) { pcToast("Period end must be after period start.", "error"); return; }
+  if (periodEnd > Math.floor(Date.now() / 1000)) { pcToast("Period end cannot be in the future.", "error"); return; }
+
+  const statusEl = document.getElementById('proof-tx-status');
+  try {
+    statusEl.textContent = "Submitting energy proof...";
+    const tx = await PC.nodeRegistryContract.submitEnergyProof(nodeId, Math.floor(parseFloat(kwh)), periodStart, periodEnd);
+    statusEl.textContent = `Tx submitted: ${tx.hash}`;
+    await tx.wait();
+    statusEl.textContent = `Proof submitted: ${tx.hash}`;
+    pcToast("Energy proof submitted! Awaiting oracle approval.", "success");
+    document.getElementById('proof-kwh').value = "";
+    loadMyProofs();
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = err.reason || err.message || "Transaction failed.";
+    pcToast("Energy proof submission failed.", "error");
+  }
+}
+
+async function handleRetireNode(nodeId) {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+  if (!confirm(`Retire node #${nodeId}? This is permanent and cannot be undone.`)) return;
+
+  try {
+    const tx = await PC.nodeRegistryContract.retireNode(nodeId);
+    pcToast(`Retiring node #${nodeId}...`);
+    await tx.wait();
+    pcToast(`Node #${nodeId} retired.`, "success");
+    loadMyNodes();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Failed to retire node.", "error");
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Bootstrap
+   ------------------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+  toggleConnectedUI();
+
+  document.getElementById('btn-register-node').addEventListener('click', handleRegisterNode);
+  document.getElementById('btn-submit-proof').addEventListener('click', handleSubmitProof);
+  document.getElementById('btn-refresh-nodes').addEventListener('click', loadMyNodes);
+  document.getElementById('btn-refresh-proofs').addEventListener('click', loadMyProofs);
+
+  pcOnConnect(() => {
+    toggleConnectedUI();
+    loadMyNodes();
+    loadMyProofs();
+    loadWalletBalance();
+  });
+
+  pcRenderIcons();
+});
+</script>
+</body>
+</html>
