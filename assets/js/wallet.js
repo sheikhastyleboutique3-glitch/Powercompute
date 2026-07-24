@@ -16,6 +16,7 @@ const PC = {
   tokenContract: null,
   nodeRegistryContract: null,
   presaleContract: null,
+  announcementsContract: null,
   isOwner: false,
   listeners: []
 };
@@ -140,6 +141,9 @@ async function pcConnectWallet() {
     if (POWERCOMPUTE_CONFIG.presaleConfigured) {
       PC.presaleContract = new ethers.Contract(POWERCOMPUTE_CONFIG.PRESALE_ADDRESS, PRESALE_ABI, PC.signer);
     }
+    if (POWERCOMPUTE_CONFIG.announcementsConfigured) {
+      PC.announcementsContract = new ethers.Contract(POWERCOMPUTE_CONFIG.ANNOUNCEMENTS_ADDRESS, ANNOUNCEMENTS_ABI, PC.signer);
+    }
 
     // Determine owner/admin status (checked against token contract owner()
     // since it's always configured first in the deployment order).
@@ -179,7 +183,6 @@ function pcOnConnect(fn) {
 function pcUpdateWalletUI(connected) {
   const labelEls = document.querySelectorAll('[data-wallet-label]');
   const statusEls = document.querySelectorAll('[data-wallet-status]');
-  const adminOnlyEls = document.querySelectorAll('[data-admin-only]');
   const connectBtns = document.querySelectorAll('[data-connect-wallet]');
 
   if (connected && PC.address) {
@@ -188,9 +191,6 @@ function pcUpdateWalletUI(connected) {
     statusEls.forEach(el => {
       el.textContent = `● Connected on Base Sepolia — ${PC.address}`;
       el.classList.add('text-emerald-glow');
-    });
-    adminOnlyEls.forEach(el => {
-      el.classList.toggle('hidden', !PC.isOwner);
     });
   } else {
     labelEls.forEach(el => { el.textContent = 'Connect Wallet'; });

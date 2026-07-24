@@ -66,8 +66,8 @@
       <a href="#chart" class="nav-link">Live Grid</a>
       <a href="#staking" class="nav-link">Staking</a>
       <a href="#roadmap" class="nav-link">Roadmap</a>
+      <a href="#news" class="nav-link">News</a>
       <a href="dashboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="server" class="w-3.5 h-3.5"></i>Node Dashboard</a>
-      <a href="admin.html" class="nav-link flex items-center gap-1.5"><i data-lucide="shield" class="w-3.5 h-3.5"></i>Admin</a>
     </nav>
     <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
       <i data-lucide="wallet" class="w-4 h-4"></i>
@@ -83,8 +83,8 @@
     <a href="#chart" class="block text-slate-300">Live Grid</a>
     <a href="#staking" class="block text-slate-300">Staking</a>
     <a href="#roadmap" class="block text-slate-300">Roadmap</a>
+    <a href="#news" class="block text-slate-300">News</a>
     <a href="dashboard.html" class="block text-slate-300">Node Dashboard</a>
-    <a href="admin.html" class="block text-slate-300">Admin Panel</a>
     <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
       <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
     </button>
@@ -632,6 +632,20 @@
   </div>
 </section>
 
+<!-- ================= NEWS / ANNOUNCEMENTS ================= -->
+<section id="news" class="px-5 lg:px-8 max-w-7xl mx-auto py-10">
+  <div class="text-center max-w-2xl mx-auto mb-10">
+    <h2 class="text-3xl lg:text-4xl font-bold mb-3">Protocol News &amp; Announcements</h2>
+    <p class="text-slate-400">Published directly on-chain by the PowerCompute team — no server, no database, fully verifiable.</p>
+  </div>
+
+  <div id="news-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div class="glass glass-border-glow rounded-2xl p-6 col-span-full text-center text-slate-500 text-sm py-10">
+      Loading announcements...
+    </div>
+  </div>
+</section>
+
 <!-- ================= FOOTER ================= -->
 <footer class="mt-12 border-t border-white/5 px-5 lg:px-8 py-12">
   <div class="max-w-7xl mx-auto grid md:grid-cols-4 gap-10">
@@ -658,7 +672,7 @@
       <p class="font-semibold mb-4 text-sm">Ecosystem</p>
       <div class="space-y-3 text-sm text-slate-400">
         <a href="dashboard.html" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="server" class="w-4 h-4"></i> Node Dashboard</a>
-        <a href="admin.html" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="shield" class="w-4 h-4"></i> Admin Panel</a>
+        <a href="#news" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="newspaper" class="w-4 h-4"></i> News</a>
         <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="twitter" class="w-4 h-4"></i> X / Twitter</a>
         <a href="https://discord.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-emerald-glow transition"><i data-lucide="message-circle" class="w-4 h-4"></i> Discord</a>
       </div>
@@ -675,7 +689,7 @@
   </div>
 
   <div class="max-w-7xl mx-auto border-t border-white/5 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-    <p class="text-xs text-slate-500">© 2026 PowerCompute Protocol. All rights reserved.</p>
+    <p class="text-xs text-slate-500">© 2026 PowerCompute Protocol. All rights reserved. · <a href="admin.html" class="hover:text-slate-400 transition">Owner Console</a></p>
     <p class="text-xs text-slate-500 text-center sm:text-right max-w-xl">
       $PWR is deployed on a public testnet for demonstration purposes. Testnet tokens hold no monetary value.
       Always verify contract addresses independently before interacting.
@@ -1193,7 +1207,7 @@ function setupMaxButtons() {
 }
 
 function setupScrollSpy() {
-  const sections = ['metrics', 'calculator', 'chart', 'staking', 'roadmap'];
+  const sections = ['metrics', 'calculator', 'chart', 'staking', 'roadmap', 'news'];
   const navLinks = document.querySelectorAll('.nav-link');
   window.addEventListener('scroll', () => {
     let current = sections[0];
@@ -1209,6 +1223,81 @@ function setupScrollSpy() {
 }
 
 /* -------------------------------------------------------------------------
+   News / Announcements — reads PowerComputeAnnouncements.sol via read-only
+   RPC (public content, no wallet connection required to view). Falls back
+   to illustrative demo posts if the contract isn't configured yet.
+   ------------------------------------------------------------------------- */
+const DEMO_NEWS = [
+  {
+    title: "PowerCompute Testnet Phase 1 Is Live",
+    body: "Node operators can now register GPU hardware and submit energy-routing proofs on Base Sepolia. Rewards are minted automatically once an oracle approves your proof.",
+    tag: "Announcement",
+    publishedAt: Math.floor(Date.now() / 1000) - 86400 * 2
+  },
+  {
+    title: "Presale Phase 1 Milestone Reached",
+    body: "The protocol funding round has crossed 60% of its Phase 1 goal. Phase 2 pricing unlocks once the current cap is filled.",
+    tag: "Presale",
+    publishedAt: Math.floor(Date.now() / 1000) - 86400 * 5
+  },
+  {
+    title: "Security Audit Scheduled for Q2",
+    body: "Ahead of mainnet deployment, PowerComputeToken, NodeRegistry, and PowerComputePresale will undergo a third-party audit.",
+    tag: "Security",
+    publishedAt: Math.floor(Date.now() / 1000) - 86400 * 9
+  }
+];
+
+function renderNewsCards(items, isLive) {
+  const grid = document.getElementById('news-grid');
+  if (items.length === 0) {
+    grid.innerHTML = `<div class="glass glass-border-glow rounded-2xl p-6 col-span-full text-center text-slate-500 text-sm py-10">No announcements published yet.</div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map(post => {
+    const tagColor = post.tag === "Security" ? "pill-red" : post.tag === "Presale" ? "pill-cyan" : "pill-emerald";
+    const dateLabel = new Date(Number(post.publishedAt) * 1000).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+    const linkHtml = post.externalUrl
+      ? `<a href="${post.externalUrl}" target="_blank" rel="noopener noreferrer" class="text-xs text-emerald-glow hover:underline mt-3 inline-flex items-center gap-1">Read more <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a>`
+      : "";
+    return `
+      <div class="glass glass-border-glow rounded-2xl p-6 flex flex-col">
+        <div class="flex items-center justify-between mb-3">
+          <span class="pill ${tagColor}">${post.tag || 'Post'}</span>
+          <span class="text-[11px] text-slate-500 mono">${dateLabel}</span>
+        </div>
+        <h3 class="font-bold text-base mb-2">${post.title}</h3>
+        <p class="text-sm text-slate-400 flex-1">${post.body}</p>
+        ${linkHtml}
+      </div>`;
+  }).join("");
+
+  pcRenderIcons();
+
+  if (!isLive) {
+    const grid2 = document.getElementById('news-grid');
+    grid2.insertAdjacentHTML('afterbegin', `<div class="col-span-full text-center text-[11px] mono text-slate-500 mb-1">Showing illustrative demo announcements — deploy PowerComputeAnnouncements.sol and configure it to publish real, on-chain articles.</div>`);
+  }
+}
+
+async function loadNews() {
+  if (!POWERCOMPUTE_CONFIG.announcementsConfigured) {
+    renderNewsCards(DEMO_NEWS, false);
+    return;
+  }
+  try {
+    const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
+    const announcements = new ethers.Contract(POWERCOMPUTE_CONFIG.ANNOUNCEMENTS_ADDRESS, ANNOUNCEMENTS_ABI, readProvider);
+    const posts = await announcements.getRecentPosts(12);
+    renderNewsCards(posts, true);
+  } catch (err) {
+    console.error("Failed to load on-chain announcements, falling back to demo:", err);
+    renderNewsCards(DEMO_NEWS, false);
+  }
+}
+
+/* -------------------------------------------------------------------------
    Bootstrap
    ------------------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
@@ -1219,6 +1308,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadProtocolMetrics();
   loadPresaleProgress();
+  loadNews();
   startCountdown();
   runCalculator();
 

@@ -15,6 +15,7 @@ const POWERCOMPUTE_CONFIG = {
   TOKEN_ADDRESS: "0x0000000000000000000000000000000000000000",
   NODE_REGISTRY_ADDRESS: "0x0000000000000000000000000000000000000000",
   PRESALE_ADDRESS: "0x0000000000000000000000000000000000000000",
+  ANNOUNCEMENTS_ADDRESS: "0x0000000000000000000000000000000000000000",
 
   // ------------------------------------------------------------------
   // Network
@@ -37,6 +38,7 @@ function pcIsConfigured(address) {
 POWERCOMPUTE_CONFIG.tokenConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.TOKEN_ADDRESS);
 POWERCOMPUTE_CONFIG.nodeRegistryConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.NODE_REGISTRY_ADDRESS);
 POWERCOMPUTE_CONFIG.presaleConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.PRESALE_ADDRESS);
+POWERCOMPUTE_CONFIG.announcementsConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.ANNOUNCEMENTS_ADDRESS);
 
 // ------------------------------------------------------------------
 // ABIs (human-readable ethers.js v5 fragments — only the functions the
@@ -152,6 +154,28 @@ const PRESALE_ABI = [
   "event Contributed(address indexed contributor, uint256 phaseIndex, uint256 weiAmount, uint256 tokensAllocated)",
   "event PresaleFinalized(uint256 totalRaisedWei, uint256 totalTokensSold)",
   "event Claimed(address indexed contributor, uint256 tokenAmount)"
+];
+
+const ANNOUNCEMENTS_ABI = [
+  "function owner() view returns (address)",
+  "function nextPostId() view returns (uint256)",
+  "function totalPosts() view returns (uint256)",
+  "function editors(address) view returns (bool)",
+  "function posts(uint256) view returns (uint256 id, string title, string body, string tag, string externalUrl, address author, uint256 publishedAt, uint256 updatedAt, bool archived)",
+  "function getPost(uint256 postId) view returns (tuple(uint256 id, string title, string body, string tag, string externalUrl, address author, uint256 publishedAt, uint256 updatedAt, bool archived))",
+  "function getRecentPosts(uint256 limit) view returns (tuple(uint256 id, string title, string body, string tag, string externalUrl, address author, uint256 publishedAt, uint256 updatedAt, bool archived)[])",
+  "function publish(string title, string body, string tag, string externalUrl) returns (uint256)",
+  "function editPost(uint256 postId, string title, string body, string tag, string externalUrl)",
+  "function archivePost(uint256 postId)",
+  "function unarchivePost(uint256 postId)",
+  "function setEditor(address editorAddr, bool allowed)",
+  "function pause()",
+  "function unpause()",
+  "function paused() view returns (bool)",
+  "event PostPublished(uint256 indexed postId, address indexed author, string title, string tag)",
+  "event PostEdited(uint256 indexed postId, address indexed editor)",
+  "event PostArchived(uint256 indexed postId)",
+  "event PostUnarchived(uint256 indexed postId)"
 ];
 
 // Human-readable labels for on-chain enums
