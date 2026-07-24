@@ -58,10 +58,16 @@
       <a href="leaderboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="trophy" class="w-3.5 h-3.5"></i>Leaderboard</a>
       <a href="governance.html" class="nav-link active flex items-center gap-1.5"><i data-lucide="landmark" class="w-3.5 h-3.5"></i>Governance</a>
     </nav>
-    <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
-      <i data-lucide="wallet" class="w-4 h-4"></i>
-      <span data-wallet-label>Connect Wallet</span>
-    </button>
+    <div class="hidden sm:flex items-center gap-2">
+      <button data-connect-wallet class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+        <i data-lucide="wallet" class="w-4 h-4"></i>
+        <span data-wallet-label>Connect Wallet</span>
+      </button>
+      <button data-connect-walletconnect class="flex items-center gap-2 rounded-lg glass glass-border-glow px-4 py-2 text-sm font-semibold text-slate-200 hover:border-cyan-glow transition" title="Connect a mobile wallet via WalletConnect (scan QR code)">
+        <i data-lucide="qr-code" class="w-4 h-4"></i>
+        <span>WalletConnect</span>
+      </button>
+    </div>
     <button id="mobile-menu-btn" class="md:hidden text-slate-300">
       <i data-lucide="menu" class="w-6 h-6"></i>
     </button>
@@ -73,7 +79,10 @@
     <a href="leaderboard.html" class="block text-slate-300">Leaderboard</a>
     <a href="governance.html" class="block text-slate-300">Governance</a>
     <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
-      <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
+      <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet (Browser Extension)
+    </button>
+    <button data-connect-walletconnect class="w-full flex items-center justify-center gap-2 rounded-lg glass glass-border-glow px-4 py-2.5 font-semibold text-slate-200">
+      <i data-lucide="qr-code" class="w-4 h-4"></i> WalletConnect (Mobile Wallet)
     </button>
   </div>
 </header>
