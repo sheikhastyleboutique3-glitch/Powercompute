@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Governance — PowerCompute ($PWR)</title>
+<meta name="description" content="Vote on PowerCompute protocol proposals with your staked $PWR. Stake-weighted, fully on-chain, advisory governance." />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2310B981'/%3E%3Cstop offset='100%25' stop-color='%2306B6D4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='%23090D16'/%3E%3Cpath d='M55 15 L30 55 H48 L42 85 L72 42 H52 Z' fill='url(%23g)'/%3E%3C/svg%3E" />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/style.css">
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { charcoal: '#090D16', panel: '#0E1526' },
+        fontFamily: {
+          sans: ['Space Grotesk', 'ui-sans-serif', 'system-ui'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+        },
+        boxShadow: {
+          'glow-emerald': '0 0 20px rgba(16,185,129,0.35), 0 0 60px rgba(16,185,129,0.08)',
+          'glow-cyan': '0 0 20px rgba(6,182,212,0.35), 0 0 60px rgba(6,182,212,0.08)'
+        }
+      }
+    }
+  }
+</script>
+</head>
+
+<body class="bg-charcoal text-slate-200 antialiased">
+
+<div class="fixed inset-0 -z-10 bg-charcoal">
+  <div class="absolute inset-0 bg-grid animate-grid-move opacity-60"></div>
+  <div class="absolute -top-40 -left-40 w-[36rem] h-[36rem] bg-emerald-500/20 rounded-full blur-[120px]"></div>
+  <div class="absolute top-1/3 -right-40 w-[36rem] h-[36rem] bg-cyan-500/15 rounded-full blur-[130px]"></div>
+</div>
+
+<!-- ================= NAVBAR ================= -->
+<header class="sticky top-0 z-50 border-b border-white/5 backdrop-blur-xl bg-charcoal/70">
+  <div class="max-w-7xl mx-auto px-5 lg:px-8 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-2.5 font-bold text-lg">
+      <span class="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-glow-emerald">
+        <i data-lucide="zap" class="w-5 h-5 text-charcoal"></i>
+      </span>
+      <span>Power<span class="text-gradient">Compute</span></span>
+    </a>
+    <nav class="hidden md:flex items-center gap-7 text-sm text-slate-300">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="index.html#staking" class="nav-link">Staking</a>
+      <a href="dashboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="server" class="w-3.5 h-3.5"></i>Node Dashboard</a>
+      <a href="leaderboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="trophy" class="w-3.5 h-3.5"></i>Leaderboard</a>
+      <a href="governance.html" class="nav-link active flex items-center gap-1.5"><i data-lucide="landmark" class="w-3.5 h-3.5"></i>Governance</a>
+    </nav>
+    <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
+      <i data-lucide="wallet" class="w-4 h-4"></i>
+      <span data-wallet-label>Connect Wallet</span>
+    </button>
+    <button id="mobile-menu-btn" class="md:hidden text-slate-300">
+      <i data-lucide="menu" class="w-6 h-6"></i>
+    </button>
+  </div>
+  <div id="mobile-menu" class="hidden md:hidden border-t border-white/5 bg-charcoal/95 px-5 py-4 space-y-3 text-sm">
+    <a href="index.html" class="block text-slate-300">Home</a>
+    <a href="index.html#staking" class="block text-slate-300">Staking</a>
+    <a href="dashboard.html" class="block text-slate-300">Node Dashboard</a>
+    <a href="leaderboard.html" class="block text-slate-300">Leaderboard</a>
+    <a href="governance.html" class="block text-slate-300">Governance</a>
+    <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
+      <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
+    </button>
+  </div>
+</header>
+
+<main class="px-5 lg:px-8 max-w-5xl mx-auto py-10">
+
+  <!-- ================= PAGE HEADER ================= -->
+  <div class="mb-8">
+    <div class="glass glass-border-glow rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-mono text-emerald-glow w-fit mb-3">
+      <i data-lucide="landmark" class="w-3.5 h-3.5"></i> Stake-Weighted Governance
+    </div>
+    <h1 class="text-3xl lg:text-4xl font-bold">Governance</h1>
+    <p class="text-slate-400 text-sm mt-1 max-w-2xl">
+      Your voting power equals your currently staked $PWR. Proposals are advisory: passing a vote signals the community's
+      will, which the team commits to act on — see <a href="index.html#staking" class="text-emerald-glow underline">Staking</a>
+      to increase your voting power.
+    </p>
+  </div>
+
+  <!-- ================= NOT CONFIGURED NOTICE ================= -->
+  <div id="not-configured-banner" class="hidden glass glass-border-glow rounded-2xl p-5 mb-8 flex items-center gap-3">
+    <i data-lucide="settings" class="w-5 h-5 text-cyan-glow shrink-0"></i>
+    <p class="text-sm text-slate-300">Governance contract not deployed yet. Showing illustrative demo proposals below.</p>
+  </div>
+
+  <!-- ================= MY VOTING POWER ================= -->
+  <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="zap" class="w-5 h-5 text-emerald-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="my-voting-power">--</p>
+      <p class="text-xs text-slate-400 mt-1">My Voting Power (Staked $PWR)</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="users" class="w-5 h-5 text-cyan-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="total-voting-power">--</p>
+      <p class="text-xs text-slate-400 mt-1">Total Staked (Network Voting Power)</p>
+    </div>
+    <div class="glass glass-border-glow rounded-2xl p-5">
+      <i data-lucide="file-text" class="w-5 h-5 text-emerald-glow mb-2"></i>
+      <p class="text-xl font-bold mono" id="total-proposals">--</p>
+      <p class="text-xs text-slate-400 mt-1">Total Proposals</p>
+    </div>
+  </div>
+
+  <!-- ================= PROPOSALS LIST ================= -->
+  <div class="flex items-center justify-between mb-5">
+    <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="vote" class="w-5 h-5 text-emerald-glow"></i> All Proposals</h2>
+    <button id="btn-refresh-proposals" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+      <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+    </button>
+  </div>
+
+  <div id="proposals-list" class="space-y-4">
+    <div class="glass glass-border-glow rounded-2xl p-8 text-center text-slate-500 text-sm">Loading proposals...</div>
+  </div>
+
+  <!-- ================= HOW VOTING WORKS ================= -->
+  <div class="glass glass-border-glow rounded-2xl p-5 mt-10 flex items-start gap-3">
+    <i data-lucide="info" class="w-5 h-5 text-cyan-glow shrink-0 mt-0.5"></i>
+    <p class="text-xs text-slate-400 leading-relaxed">
+      Each proposal has a fixed voting window. Your vote weight is your currently staked $PWR balance at the moment you
+      vote (not a historical snapshot). A proposal succeeds if total votes cast meet the quorum threshold AND "For" votes
+      exceed "Against" votes by the time voting closes. Anyone with at least the proposal threshold of staked $PWR can
+      create a new proposal from the <a href="dashboard.html" class="text-emerald-glow underline">Admin Console</a> (team-managed for now; a public proposal form may open up in a future release).
+    </p>
+  </div>
+</main>
+
+<footer class="mt-12 border-t border-white/5 px-5 lg:px-8 py-8 text-center">
+  <p class="text-xs text-slate-500">© 2026 PowerCompute Protocol. Governance is advisory on testnet — voting outcomes do not automatically execute on-chain actions.</p>
+</footer>
+
+<script src="./assets/js/config.js"></script>
+<script src="./assets/js/wallet.js"></script>
+
+<script>
+/* ==========================================================================
+   GOVERNANCE.HTML — PUBLIC STAKE-WEIGHTED VOTING PAGE
+   ========================================================================== */
+
+const DEMO_PROPOSALS = [
+  {
+    id: 0, title: "Reduce staking reward rate by 15% to extend runway",
+    description: "The current staking rewards pool is depleting faster than projected. This proposal reduces the emission rate to extend the pool's lifetime by an estimated 8 months.",
+    state: 3, forVotes: "42000", againstVotes: "8500", abstainVotes: "1200", isDemo: true
+  },
+  {
+    id: 1, title: "Approve Q2 marketing budget of 2,000,000 $PWR",
+    description: "Allocate 2M $PWR from the ecosystem fund toward exchange listing fees and community growth campaigns ahead of mainnet launch.",
+    state: 1, forVotes: "15000", againstVotes: "3000", abstainVotes: "500", isDemo: true
+  },
+  {
+    id: 2, title: "Add a second oracle provider for energy proof verification",
+    description: "Reduces centralization risk in the PoEC pipeline by requiring 2-of-2 oracle sign-off on high-value energy proofs above 100,000 kWh.",
+    state: 2, forVotes: "9000", againstVotes: "11000", abstainVotes: "800", isDemo: true
+  }
+];
+
+async function loadVotingPower() {
+  if (!PC.address || !PC.tokenContract) {
+    document.getElementById('my-voting-power').textContent = PC.address ? "0 PWR" : "Connect wallet";
+    return;
+  }
+  try {
+    const staked = await PC.tokenContract.stakedBalanceOf(PC.address);
+    document.getElementById('my-voting-power').textContent = `${pcFmtToken(staked, 18, 0)} PWR`;
+  } catch (err) {
+    document.getElementById('my-voting-power').textContent = "Read error";
+  }
+}
+
+async function loadGovernanceStats() {
+  const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
+
+  if (POWERCOMPUTE_CONFIG.tokenConfigured) {
+    try {
+      const token = new ethers.Contract(POWERCOMPUTE_CONFIG.TOKEN_ADDRESS, PWR_TOKEN_ABI, readProvider);
+      const totalStaked = await token.totalStaked();
+      document.getElementById('total-voting-power').textContent = `${pcFmtToken(totalStaked, 18, 0)} PWR`;
+    } catch (err) { console.error(err); }
+  }
+
+  if (POWERCOMPUTE_CONFIG.governorConfigured) {
+    try {
+      const governor = new ethers.Contract(POWERCOMPUTE_CONFIG.GOVERNOR_ADDRESS, GOVERNOR_ABI, readProvider);
+      const nextId = await governor.nextProposalId();
+      document.getElementById('total-proposals').textContent = (Number(nextId.toString()) - 1).toString();
+    } catch (err) { console.error(err); }
+  } else {
+    document.getElementById('total-proposals').textContent = DEMO_PROPOSALS.length.toString();
+  }
+}
+
+function pillForGovState(stateIndex, isDemo) {
+  const label = isDemo
+    ? (["Pending", "Active", "Defeated", "Succeeded", "Executed"][stateIndex] || "Unknown")
+    : (GOVERNOR_STATE_LABELS[stateIndex] || "Unknown");
+  const map = { Succeeded: "pill-emerald", Executed: "pill-emerald", Defeated: "pill-red", Active: "pill-cyan", Pending: "pill-slate" };
+  return { label, cssClass: map[label] || "pill-slate" };
+}
+
+function renderVoteBar(forVotes, againstVotes, abstainVotes) {
+  const forNum = parseFloat(forVotes);
+  const againstNum = parseFloat(againstVotes);
+  const abstainNum = parseFloat(abstainVotes);
+  const total = forNum + againstNum + abstainNum;
+  if (total === 0) {
+    return `<div class="w-full h-2 rounded-full bg-white/5"></div>`;
+  }
+  const forPct = (forNum / total) * 100;
+  const againstPct = (againstNum / total) * 100;
+  const abstainPct = 100 - forPct - againstPct;
+  return `
+    <div class="w-full h-2 rounded-full overflow-hidden flex bg-white/5">
+      <div class="h-full bg-emerald-500" style="width:${forPct}%"></div>
+      <div class="h-full bg-red-500" style="width:${againstPct}%"></div>
+      <div class="h-full bg-slate-500" style="width:${abstainPct}%"></div>
+    </div>`;
+}
+
+function renderProposalCard(p, isDemo) {
+  const { label, cssClass } = pillForGovState(p.state, isDemo);
+  const canVote = !isDemo && label === "Active";
+  const id = isDemo ? `demo-${p.id}` : p.id.toString();
+
+  return `
+    <div class="glass glass-border-glow rounded-2xl p-6">
+      <div class="flex items-start justify-between gap-3 mb-2">
+        <h3 class="font-bold text-base">#${id.replace('demo-', '')} — ${p.title}</h3>
+        <span class="pill ${cssClass} shrink-0">${label}</span>
+      </div>
+      <p class="text-sm text-slate-400 mb-4">${p.description}</p>
+      ${renderVoteBar(p.forVotes, p.againstVotes, p.abstainVotes)}
+      <div class="flex items-center gap-4 text-xs mono text-slate-500 mt-2">
+        <span class="text-emerald-glow">For: ${parseFloat(p.forVotes).toLocaleString()}</span>
+        <span class="text-red-400">Against: ${parseFloat(p.againstVotes).toLocaleString()}</span>
+        <span>Abstain: ${parseFloat(p.abstainVotes).toLocaleString()}</span>
+      </div>
+      ${canVote ? `
+        <div class="flex gap-2 mt-4">
+          <button class="vote-btn flex-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2" data-proposal-id="${id}" data-support="1">Vote For</button>
+          <button class="vote-btn flex-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold py-2" data-proposal-id="${id}" data-support="0">Vote Against</button>
+          <button class="vote-btn flex-1 rounded-lg bg-slate-500/15 border border-slate-500/30 text-slate-300 text-xs font-semibold py-2" data-proposal-id="${id}" data-support="2">Abstain</button>
+        </div>` : isDemo ? `<p class="text-[11px] text-slate-500 mt-3 italic">Demo proposal — voting disabled until PowerComputeGovernor is deployed.</p>` : ''}
+    </div>`;
+}
+
+async function loadProposals() {
+  const list = document.getElementById('proposals-list');
+
+  if (!POWERCOMPUTE_CONFIG.governorConfigured) {
+    document.getElementById('not-configured-banner').classList.remove('hidden');
+    list.innerHTML = DEMO_PROPOSALS.map(p => renderProposalCard(p, true)).join("");
+    pcRenderIcons();
+    return;
+  }
+
+  list.innerHTML = `<div class="glass glass-border-glow rounded-2xl p-8 text-center text-slate-500 text-sm">Loading proposals...</div>`;
+
+  try {
+    const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
+    const governor = new ethers.Contract(POWERCOMPUTE_CONFIG.GOVERNOR_ADDRESS, GOVERNOR_ABI, readProvider);
+
+    const nextId = await governor.nextProposalId();
+    const total = Number(nextId.toString()) - 1;
+
+    if (total <= 0) {
+      list.innerHTML = `<div class="glass glass-border-glow rounded-2xl p-8 text-center text-slate-500 text-sm">No proposals yet. Check back soon.</div>`;
+      return;
+    }
+
+    const ids = [];
+    for (let i = total; i >= 1; i--) ids.push(i);
+
+    const proposals = await Promise.all(ids.map(id =>
+      Promise.all([governor.getProposal(id), governor.state(id)]).then(([p, s]) => ({
+        id: p.id, title: p.title, description: p.description,
+        forVotes: ethers.utils.formatUnits(p.forVotes, 18),
+        againstVotes: ethers.utils.formatUnits(p.againstVotes, 18),
+        abstainVotes: ethers.utils.formatUnits(p.abstainVotes, 18),
+        state: s
+      }))
+    ));
+
+    list.innerHTML = proposals.map(p => renderProposalCard(p, false)).join("");
+    pcRenderIcons();
+
+    document.querySelectorAll('.vote-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleVote(btn.dataset.proposalId, parseInt(btn.dataset.support, 10)));
+    });
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = `<div class="glass glass-border-glow rounded-2xl p-8 text-center text-red-400 text-sm">Failed to load proposals: ${err.message || err}</div>`;
+  }
+}
+
+async function handleVote(proposalId, support) {
+  if (!pcRequire(PC.governorContract, "PowerComputeGovernor")) return;
+  try {
+    const tx = await PC.governorContract.castVote(proposalId, support);
+    pcToast("Submitting your vote...");
+    await tx.wait();
+    pcToast("Vote cast successfully!", "success");
+    loadProposals();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Vote failed — you may need staked $PWR or may have already voted.", "error");
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadGovernanceStats();
+  loadProposals();
+
+  document.getElementById('btn-refresh-proposals').addEventListener('click', loadProposals);
+
+  pcOnConnect(loadVotingPower);
+
+  pcRenderIcons();
+});
+</script>
+</body>
+</html>

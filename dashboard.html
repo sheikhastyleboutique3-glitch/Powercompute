@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Node Operator Dashboard — PowerCompute ($PWR)</title>
 <meta name="description" content="Register your GPU compute node, submit Proof-of-Energy-Consumption reports, and track $PWR rewards on the PowerCompute network." />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2310B981'/%3E%3Cstop offset='100%25' stop-color='%2306B6D4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='%23090D16'/%3E%3Cpath d='M55 15 L30 55 H48 L42 85 L72 42 H52 Z' fill='url(%23g)'/%3E%3C/svg%3E" />
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -54,6 +55,8 @@
       <a href="index.html" class="nav-link">Home</a>
       <a href="index.html#staking" class="nav-link">Staking</a>
       <a href="dashboard.html" class="nav-link active flex items-center gap-1.5"><i data-lucide="server" class="w-3.5 h-3.5"></i>Node Dashboard</a>
+      <a href="leaderboard.html" class="nav-link flex items-center gap-1.5"><i data-lucide="trophy" class="w-3.5 h-3.5"></i>Leaderboard</a>
+      <a href="governance.html" class="nav-link flex items-center gap-1.5"><i data-lucide="landmark" class="w-3.5 h-3.5"></i>Governance</a>
     </nav>
     <button data-connect-wallet class="hidden sm:flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition">
       <i data-lucide="wallet" class="w-4 h-4"></i>
@@ -67,6 +70,8 @@
     <a href="index.html" class="block text-slate-300">Home</a>
     <a href="index.html#staking" class="block text-slate-300">Staking</a>
     <a href="dashboard.html" class="block text-slate-300">Node Dashboard</a>
+    <a href="leaderboard.html" class="block text-slate-300">Leaderboard</a>
+    <a href="governance.html" class="block text-slate-300">Governance</a>
     <button data-connect-wallet class="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-semibold text-charcoal">
       <i data-lucide="wallet" class="w-4 h-4"></i> Connect Wallet
     </button>
@@ -84,7 +89,13 @@
       <h1 class="text-3xl lg:text-4xl font-bold">Node Dashboard</h1>
       <p class="text-slate-400 text-sm mt-1">Register GPU nodes, submit Proof-of-Energy-Consumption (PoEC) reports, and track your $PWR rewards.</p>
     </div>
-    <p data-wallet-status class="text-xs mono text-slate-500"></p>
+    <div class="flex items-center gap-3">
+      <button id="btn-toggle-notifications" class="flex items-center gap-2 rounded-lg glass glass-border-glow px-3 py-2 text-xs font-semibold text-slate-300 hover:text-emerald-glow transition">
+        <i data-lucide="bell-off" class="w-4 h-4" id="notif-icon"></i>
+        <span id="notif-label">Enable Alerts</span>
+      </button>
+      <p data-wallet-status class="text-xs mono text-slate-500"></p>
+    </div>
   </div>
 
   <!-- ================= NOT CONNECTED NOTICE ================= -->
@@ -115,6 +126,67 @@
       <p class="text-2xl font-bold mono" id="stat-my-balance">--</p>
       <p class="text-xs text-slate-400 mt-1">Wallet $PWR Balance</p>
     </div>
+  </div>
+
+  <!-- ================= REFERRAL LINK ================= -->
+  <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7 mb-10">
+    <h2 class="font-bold text-lg mb-1 flex items-center gap-2">
+      <i data-lucide="share-2" class="w-5 h-5 text-emerald-glow"></i> Your Referral Link
+    </h2>
+    <p class="text-xs text-slate-400 mb-4">Share this link — anyone who joins the presale through it gets a bonus, and so do you. See the <a href="leaderboard.html" class="text-emerald-glow underline">leaderboard</a> for top referrers.</p>
+    <div class="flex flex-col sm:flex-row gap-2">
+      <input id="referral-link-input" type="text" readonly value="Connect your wallet to generate your link" class="flex-1 glass rounded-lg px-3 py-2.5 text-sm mono outline-none border border-white/10" />
+      <button id="btn-copy-referral" class="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 font-semibold text-charcoal text-sm whitespace-nowrap flex items-center justify-center gap-2">
+        <i data-lucide="copy" class="w-4 h-4"></i> Copy Link
+      </button>
+    </div>
+    <div class="grid grid-cols-3 gap-3 mt-4">
+      <div class="glass rounded-lg py-2.5 text-center">
+        <p class="text-[10px] text-slate-500">Referrals</p>
+        <p class="mono font-bold text-sm" id="referral-count">--</p>
+      </div>
+      <div class="glass rounded-lg py-2.5 text-center">
+        <p class="text-[10px] text-slate-500">Volume Referred</p>
+        <p class="mono font-bold text-sm" id="referral-volume">--</p>
+      </div>
+      <div class="glass rounded-lg py-2.5 text-center">
+        <p class="text-[10px] text-slate-500">Bonus Earned</p>
+        <p class="mono font-bold text-sm text-emerald-glow" id="referral-bonus">--</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= VESTING SCHEDULE (team/advisor allocations) ================= -->
+  <div id="vesting-card" class="hidden glass glass-border-glow rounded-3xl p-6 lg:p-7 mb-10">
+    <h2 class="font-bold text-lg mb-1 flex items-center gap-2">
+      <i data-lucide="hourglass" class="w-5 h-5 text-cyan-glow"></i> My Vesting Schedule
+    </h2>
+    <p class="text-xs text-slate-400 mb-4">Team/advisor $PWR allocations unlock linearly over time via <span class="mono">PowerComputeVesting.sol</span>.</p>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      <div class="glass rounded-lg py-2.5 text-center">
+        <p class="text-[10px] text-slate-500">Total Allocated</p>
+        <p class="mono font-bold text-sm" id="vest-total">--</p>
+      </div>
+      <div class="glass rounded-lg py-2.5 text-center">
+        <p class="text-[10px] text-slate-500">Vested So Far</p>
+        <p class="mono font-bold text-sm text-emerald-glow" id="vest-vested">--</p>
+      </div>
+      <div class="glass rounded-lg py-2.5 text-center">
+        <p class="text-[10px] text-slate-500">Already Released</p>
+        <p class="mono font-bold text-sm" id="vest-released">--</p>
+      </div>
+      <div class="glass rounded-lg py-2.5 text-center">
+        <p class="text-[10px] text-slate-500">Releasable Now</p>
+        <p class="mono font-bold text-sm text-cyan-glow" id="vest-releasable">--</p>
+      </div>
+    </div>
+    <div class="w-full h-3 rounded-full bg-white/5 border border-white/10 overflow-hidden mb-4">
+      <div id="vest-progress-bar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500" style="width:0%"></div>
+    </div>
+    <button id="btn-release-vesting" class="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition flex items-center justify-center gap-2">
+      <i data-lucide="download" class="w-4 h-4"></i> Release Available $PWR
+    </button>
+    <p id="vest-release-status" class="text-xs mono text-slate-500 break-all mt-2"></p>
   </div>
 
   <div class="grid lg:grid-cols-2 gap-6 mb-10">
@@ -527,21 +599,235 @@ async function handleRetireNode(nodeId) {
 }
 
 /* -------------------------------------------------------------------------
+   Referral link
+   ------------------------------------------------------------------------- */
+function updateReferralLink() {
+  const input = document.getElementById('referral-link-input');
+  if (!PC.address) {
+    input.value = "Connect your wallet to generate your link";
+    return;
+  }
+  const url = new URL('index.html', window.location.href);
+  url.searchParams.set('ref', PC.address);
+  input.value = url.toString();
+}
+
+async function loadReferralStats() {
+  if (!PC.address || !PC.presaleContract) {
+    document.getElementById('referral-count').textContent = "--";
+    document.getElementById('referral-volume').textContent = "--";
+    document.getElementById('referral-bonus').textContent = "--";
+    return;
+  }
+  try {
+    const [count, volumeWei, bonus] = await Promise.all([
+      PC.presaleContract.referralCount(PC.address),
+      PC.presaleContract.referralVolumeWei(PC.address),
+      PC.presaleContract.referralBonusEarned(PC.address)
+    ]);
+    document.getElementById('referral-count').textContent = count.toString();
+    document.getElementById('referral-volume').textContent = `${pcFmtEth(volumeWei, 3)} ETH`;
+    document.getElementById('referral-bonus').textContent = `${pcFmtToken(bonus, 18)} PWR`;
+  } catch (err) {
+    console.error("Failed to load referral stats:", err);
+  }
+}
+
+function wireReferralControls() {
+  document.getElementById('btn-copy-referral').addEventListener('click', () => {
+    const input = document.getElementById('referral-link-input');
+    if (!PC.address) { pcToast("Connect your wallet first.", "error"); return; }
+    navigator.clipboard.writeText(input.value).then(() => {
+      pcToast("Referral link copied to clipboard!", "success");
+    }).catch(() => {
+      input.select();
+      pcToast("Could not auto-copy — link is selected, press Ctrl+C.", "info");
+    });
+  });
+}
+
+/* -------------------------------------------------------------------------
+   Vesting schedule viewer
+   ------------------------------------------------------------------------- */
+async function loadVestingSchedule() {
+  const card = document.getElementById('vesting-card');
+  if (!PC.address || !PC.vestingContract) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  try {
+    const schedule = await PC.vestingContract.getSchedule(PC.address);
+    if (schedule.totalAmount.eq(0)) {
+      card.classList.add('hidden');
+      return;
+    }
+
+    card.classList.remove('hidden');
+
+    const [vested, releasable] = await Promise.all([
+      PC.vestingContract.vestedAmountOf(PC.address),
+      PC.vestingContract.releasableAmountOf(PC.address)
+    ]);
+
+    document.getElementById('vest-total').textContent = `${pcFmtToken(schedule.totalAmount, 18, 0)} PWR`;
+    document.getElementById('vest-vested').textContent = `${pcFmtToken(vested, 18, 0)} PWR`;
+    document.getElementById('vest-released').textContent = `${pcFmtToken(schedule.released, 18, 0)} PWR`;
+    document.getElementById('vest-releasable').textContent = `${pcFmtToken(releasable, 18, 0)} PWR`;
+
+    const pct = schedule.totalAmount.gt(0)
+      ? Math.min(100, (parseFloat(ethers.utils.formatUnits(vested, 18)) / parseFloat(ethers.utils.formatUnits(schedule.totalAmount, 18))) * 100)
+      : 0;
+    document.getElementById('vest-progress-bar').style.width = `${pct}%`;
+  } catch (err) {
+    console.error("Failed to load vesting schedule:", err);
+    card.classList.add('hidden');
+  }
+}
+
+function wireVestingViewerControls() {
+  document.getElementById('btn-release-vesting').addEventListener('click', async () => {
+    if (!pcRequire(PC.vestingContract, "PowerComputeVesting")) return;
+    const statusEl = document.getElementById('vest-release-status');
+    try {
+      statusEl.textContent = "Releasing vested $PWR...";
+      const tx = await PC.vestingContract.release();
+      statusEl.textContent = `Tx submitted: ${tx.hash}`;
+      await tx.wait();
+      statusEl.textContent = `Released: ${tx.hash}`;
+      pcToast("Vested $PWR released to your wallet.", "success");
+      loadVestingSchedule();
+      loadWalletBalance();
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = err.reason || err.message || "Release failed.";
+      pcToast("Nothing releasable yet, or transaction failed.", "error");
+    }
+  });
+}
+
+/* -------------------------------------------------------------------------
+   Browser notifications — opt-in alerts when a submitted energy proof is
+   approved or rejected. Polls the last-known state of "my proofs" every
+   60s while the tab is open (no backend/push service — pure client-side
+   Notification API, consistent with this project's $0-budget/no-server
+   architecture).
+   ------------------------------------------------------------------------- */
+let notificationsEnabled = false;
+let knownProofStates = {}; // proofId -> "pending" | "approved" | "rejected"
+let notificationPollTimer = null;
+
+function updateNotificationButtonUI() {
+  const icon = document.getElementById('notif-icon');
+  const label = document.getElementById('notif-label');
+  icon.setAttribute('data-lucide', notificationsEnabled ? 'bell-ring' : 'bell-off');
+  label.textContent = notificationsEnabled ? "Alerts On" : "Enable Alerts";
+  pcRenderIcons();
+}
+
+async function toggleNotifications() {
+  if (!("Notification" in window)) {
+    pcToast("Your browser doesn't support notifications.", "error");
+    return;
+  }
+
+  if (notificationsEnabled) {
+    notificationsEnabled = false;
+    clearInterval(notificationPollTimer);
+    updateNotificationButtonUI();
+    pcToast("Proof status alerts disabled.");
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    pcToast("Notification permission denied.", "error");
+    return;
+  }
+
+  notificationsEnabled = true;
+  updateNotificationButtonUI();
+  pcToast("You'll be notified here when a proof is approved or rejected while this tab is open.", "success");
+
+  await snapshotProofStates(); // baseline so we don't fire notifications for already-resolved proofs
+  notificationPollTimer = setInterval(checkForProofStatusChanges, 60000);
+}
+
+async function snapshotProofStates() {
+  if (!PC.nodeRegistryContract || !PC.address) return;
+  try {
+    const nextProofId = await PC.nodeRegistryContract.nextProofId();
+    const total = Number(nextProofId.toString()) - 1;
+    const scanFrom = Math.max(1, total - 49);
+    const ids = [];
+    for (let i = total; i >= scanFrom; i--) ids.push(i);
+
+    const proofs = await Promise.all(ids.map(id => PC.nodeRegistryContract.getEnergyProof(id).then(p => ({ id, p }))));
+    proofs.filter(({ p }) => p.operator.toLowerCase() === PC.address.toLowerCase()).forEach(({ id, p }) => {
+      knownProofStates[id] = p.approved ? "approved" : p.rejected ? "rejected" : "pending";
+    });
+  } catch (err) {
+    console.error("Failed to snapshot proof states:", err);
+  }
+}
+
+async function checkForProofStatusChanges() {
+  if (!notificationsEnabled || !PC.nodeRegistryContract || !PC.address) return;
+  try {
+    const nextProofId = await PC.nodeRegistryContract.nextProofId();
+    const total = Number(nextProofId.toString()) - 1;
+    const scanFrom = Math.max(1, total - 49);
+    const ids = [];
+    for (let i = total; i >= scanFrom; i--) ids.push(i);
+
+    const proofs = await Promise.all(ids.map(id => PC.nodeRegistryContract.getEnergyProof(id).then(p => ({ id, p }))));
+    const mine = proofs.filter(({ p }) => p.operator.toLowerCase() === PC.address.toLowerCase());
+
+    mine.forEach(({ id, p }) => {
+      const newState = p.approved ? "approved" : p.rejected ? "rejected" : "pending";
+      const oldState = knownProofStates[id];
+
+      if (oldState && oldState !== newState && newState !== "pending") {
+        new Notification("PowerCompute", {
+          body: newState === "approved"
+            ? `Energy proof #${id} approved! ${pcFmtToken(p.rewardMinted, 18)} PWR minted to your wallet.`
+            : `Energy proof #${id} was rejected. Check the dashboard for details.`
+        });
+        loadMyProofs();
+        loadWalletBalance();
+      }
+      knownProofStates[id] = newState;
+    });
+  } catch (err) {
+    console.error("Failed to check proof status changes:", err);
+  }
+}
+
+/* -------------------------------------------------------------------------
    Bootstrap
    ------------------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
   toggleConnectedUI();
+  updateReferralLink();
+  updateNotificationButtonUI();
 
   document.getElementById('btn-register-node').addEventListener('click', handleRegisterNode);
   document.getElementById('btn-submit-proof').addEventListener('click', handleSubmitProof);
   document.getElementById('btn-refresh-nodes').addEventListener('click', loadMyNodes);
   document.getElementById('btn-refresh-proofs').addEventListener('click', loadMyProofs);
+  document.getElementById('btn-toggle-notifications').addEventListener('click', toggleNotifications);
+
+  wireReferralControls();
+  wireVestingViewerControls();
 
   pcOnConnect(() => {
     toggleConnectedUI();
+    updateReferralLink();
     loadMyNodes();
     loadMyProofs();
     loadWalletBalance();
+    loadReferralStats();
+    loadVestingSchedule();
   });
 
   pcRenderIcons();

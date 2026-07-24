@@ -16,6 +16,15 @@ const POWERCOMPUTE_CONFIG = {
   NODE_REGISTRY_ADDRESS: "0x0000000000000000000000000000000000000000",
   PRESALE_ADDRESS: "0x0000000000000000000000000000000000000000",
   ANNOUNCEMENTS_ADDRESS: "0x0000000000000000000000000000000000000000",
+  TIMELOCK_ADDRESS: "0x0000000000000000000000000000000000000000",
+  VESTING_ADDRESS: "0x0000000000000000000000000000000000000000",
+  GOVERNOR_ADDRESS: "0x0000000000000000000000000000000000000000",
+
+  // ------------------------------------------------------------------
+  // WalletConnect (optional). Get a free Project ID at https://cloud.reown.com
+  // Leave as-is to skip WalletConnect and rely on injected wallets only.
+  // ------------------------------------------------------------------
+  WALLETCONNECT_PROJECT_ID: "",
 
   // ------------------------------------------------------------------
   // Network
@@ -39,6 +48,10 @@ POWERCOMPUTE_CONFIG.tokenConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.TOKEN_A
 POWERCOMPUTE_CONFIG.nodeRegistryConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.NODE_REGISTRY_ADDRESS);
 POWERCOMPUTE_CONFIG.presaleConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.PRESALE_ADDRESS);
 POWERCOMPUTE_CONFIG.announcementsConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.ANNOUNCEMENTS_ADDRESS);
+POWERCOMPUTE_CONFIG.timelockConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.TIMELOCK_ADDRESS);
+POWERCOMPUTE_CONFIG.vestingConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.VESTING_ADDRESS);
+POWERCOMPUTE_CONFIG.governorConfigured = pcIsConfigured(POWERCOMPUTE_CONFIG.GOVERNOR_ADDRESS);
+POWERCOMPUTE_CONFIG.walletConnectConfigured = !!POWERCOMPUTE_CONFIG.WALLETCONNECT_PROJECT_ID;
 
 // ------------------------------------------------------------------
 // ABIs (human-readable ethers.js v5 fragments — only the functions the
@@ -109,6 +122,8 @@ const NODE_REGISTRY_ABI = [
   "function setOracle(address oracleAddr, bool allowed)",
   "function setRewardPerKwh(uint256 newRate)",
   "function setMaxKwhPerProof(uint256 newMax)",
+  "function batchVerifyNodes(uint256[] nodeIds) returns (uint256)",
+  "function batchApproveEnergyProofs(uint256[] proofIds) returns (uint256)",
   "function pause()",
   "function unpause()",
   "function paused() view returns (bool)",
@@ -141,6 +156,7 @@ const PRESALE_ABI = [
   "function startPresale()",
   "function setFundingGoal(uint256 newGoalWei)",
   "function contribute() payable",
+  "function contributeWithReferral(address referrer) payable",
   "function depositTokensForClaims(uint256 amount)",
   "function finalize()",
   "function cancelPresale()",
@@ -151,9 +167,20 @@ const PRESALE_ABI = [
   "function pause()",
   "function unpause()",
   "function paused() view returns (bool)",
+  "function referredBy(address) view returns (address)",
+  "function referrerOf(address referee) view returns (address)",
+  "function referralCount(address) view returns (uint256)",
+  "function referralVolumeWei(address) view returns (uint256)",
+  "function referralBonusEarned(address) view returns (uint256)",
+  "function refereeBonusBps() view returns (uint256)",
+  "function referrerBonusBps() view returns (uint256)",
+  "function totalReferralBonusIssued() view returns (uint256)",
+  "function setReferralBps(uint256 newRefereeBonusBps, uint256 newReferrerBonusBps)",
   "event Contributed(address indexed contributor, uint256 phaseIndex, uint256 weiAmount, uint256 tokensAllocated)",
   "event PresaleFinalized(uint256 totalRaisedWei, uint256 totalTokensSold)",
-  "event Claimed(address indexed contributor, uint256 tokenAmount)"
+  "event Claimed(address indexed contributor, uint256 tokenAmount)",
+  "event ReferralLinked(address indexed referee, address indexed referrer)",
+  "event ReferralBonusPaid(address indexed referee, address indexed referrer, uint256 refereeBonus, uint256 referrerBonus)"
 ];
 
 const ANNOUNCEMENTS_ABI = [
@@ -178,6 +205,67 @@ const ANNOUNCEMENTS_ABI = [
   "event PostUnarchived(uint256 indexed postId)"
 ];
 
+const TIMELOCK_ABI = [
+  "function admin() view returns (address)",
+  "function pendingAdmin() view returns (address)",
+  "function delaySeconds() view returns (uint256)",
+  "function MIN_DELAY() view returns (uint256)",
+  "function MAX_DELAY() view returns (uint256)",
+  "function GRACE_PERIOD() view returns (uint256)",
+  "function queuedTransactions(bytes32) view returns (bool)",
+  "function setPendingAdmin(address newPendingAdmin)",
+  "function acceptAdmin()",
+  "function queueTransaction(address target, uint256 value, bytes data, uint256 eta) returns (bytes32)",
+  "function cancelTransaction(address target, uint256 value, bytes data, uint256 eta)",
+  "function executeTransaction(address target, uint256 value, bytes data, uint256 eta) payable returns (bytes)",
+  "function computeTxHash(address target, uint256 value, bytes data, uint256 eta) view returns (bytes32)",
+  "event QueueTransaction(bytes32 indexed txHash, address indexed target, uint256 value, bytes data, uint256 eta)",
+  "event CancelTransaction(bytes32 indexed txHash, address indexed target, uint256 value, bytes data, uint256 eta)",
+  "event ExecuteTransaction(bytes32 indexed txHash, address indexed target, uint256 value, bytes data, uint256 eta)"
+];
+
+const VESTING_ABI = [
+  "function pwrToken() view returns (address)",
+  "function owner() view returns (address)",
+  "function totalAllocated() view returns (uint256)",
+  "function totalReleased() view returns (uint256)",
+  "function beneficiaryCount() view returns (uint256)",
+  "function beneficiaries(uint256) view returns (address)",
+  "function schedules(address) view returns (uint256 totalAmount, uint256 released, uint256 startTime, uint256 cliffSeconds, uint256 durationSeconds, bool revocable, bool revoked)",
+  "function getSchedule(address beneficiary) view returns (tuple(uint256 totalAmount, uint256 released, uint256 startTime, uint256 cliffSeconds, uint256 durationSeconds, bool revocable, bool revoked))",
+  "function vestedAmountOf(address beneficiary) view returns (uint256)",
+  "function releasableAmountOf(address beneficiary) view returns (uint256)",
+  "function createVestingSchedule(address beneficiary, uint256 totalAmount, uint256 startTime, uint256 cliffSeconds, uint256 durationSeconds, bool revocable)",
+  "function revoke(address beneficiary)",
+  "function release()",
+  "event ScheduleCreated(address indexed beneficiary, uint256 totalAmount, uint256 startTime, uint256 cliffSeconds, uint256 durationSeconds, bool revocable)",
+  "event TokensReleased(address indexed beneficiary, uint256 amount)",
+  "event ScheduleRevoked(address indexed beneficiary, uint256 vestedAndKept, uint256 unvestedReturned)"
+];
+
+const GOVERNOR_ABI = [
+  "function owner() view returns (address)",
+  "function stakeToken() view returns (address)",
+  "function nextProposalId() view returns (uint256)",
+  "function proposalThreshold() view returns (uint256)",
+  "function votingPeriodSeconds() view returns (uint256)",
+  "function quorumBps() view returns (uint256)",
+  "function proposals(uint256) view returns (uint256 id, address proposer, string title, string description, uint256 startTime, uint256 endTime, uint256 forVotes, uint256 againstVotes, uint256 abstainVotes, bool executed)",
+  "function getProposal(uint256 proposalId) view returns (tuple(uint256 id, address proposer, string title, string description, uint256 startTime, uint256 endTime, uint256 forVotes, uint256 againstVotes, uint256 abstainVotes, bool executed))",
+  "function hasVoted(uint256, address) view returns (bool)",
+  "function state(uint256 proposalId) view returns (uint8)",
+  "function propose(string title, string description) returns (uint256)",
+  "function castVote(uint256 proposalId, uint8 support)",
+  "function markExecuted(uint256 proposalId)",
+  "function setProposalThreshold(uint256 newThreshold)",
+  "function setVotingPeriod(uint256 newPeriodSeconds)",
+  "function setQuorumBps(uint256 newQuorumBps)",
+  "event ProposalCreated(uint256 indexed proposalId, address indexed proposer, string title, uint256 startTime, uint256 endTime)",
+  "event VoteCast(uint256 indexed proposalId, address indexed voter, uint8 support, uint256 weight)",
+  "event ProposalExecuted(uint256 indexed proposalId)"
+];
+
 // Human-readable labels for on-chain enums
 const NODE_STATUS_LABELS = ["Pending", "Active", "Suspended", "Retired"];
 const PRESALE_STATE_LABELS = ["Configuring", "Active", "Finalized", "Cancelled"];
+const GOVERNOR_STATE_LABELS = ["Pending", "Active", "Defeated", "Succeeded", "Executed"];

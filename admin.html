@@ -6,10 +6,12 @@
 <meta name="robots" content="noindex, nofollow" />
 <title>Admin Panel — PowerCompute ($PWR)</title>
 <meta name="description" content="Owner-only administration console for the PowerCompute protocol." />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2310B981'/%3E%3Cstop offset='100%25' stop-color='%2306B6D4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='%23090D16'/%3E%3Cpath d='M55 15 L30 55 H48 L42 85 L72 42 H52 Z' fill='url(%23g)'/%3E%3C/svg%3E" />
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -111,7 +113,11 @@
     <div class="flex items-center gap-2 mb-8 glass rounded-full p-1 w-fit overflow-x-auto scrollbar-thin">
       <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="overview">Overview</button>
       <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="queue">Review Queue</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="trends">Trends</button>
       <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="controls">Protocol Controls</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="governance">Governance</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="vesting">Vesting</button>
+      <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="timelock">Timelock</button>
       <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="content">Content</button>
       <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="settings">Settings</button>
       <button class="admin-tab-btn px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap" data-tab="activity">Activity Log</button>
@@ -173,17 +179,20 @@
           <h2 class="font-bold text-lg flex items-center gap-2">
             <i data-lucide="shield-check" class="w-5 h-5 text-emerald-glow"></i> Pending Node Verification Queue
           </h2>
-          <button id="btn-refresh-pending-nodes" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
-          </button>
+          <div class="flex items-center gap-3">
+            <button id="btn-verify-selected" class="hidden text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold">Verify Selected (<span id="verify-selected-count">0</span>)</button>
+            <button id="btn-refresh-pending-nodes" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
         </div>
         <div class="overflow-x-auto scrollbar-thin">
           <table class="pc-table">
             <thead>
-              <tr><th>Node ID</th><th>Operator</th><th>GPU Model</th><th>GPUs</th><th>Region</th><th>Energy Site</th><th>Registered</th><th>Action</th></tr>
+              <tr><th><input type="checkbox" id="select-all-nodes" /></th><th>Node ID</th><th>Operator</th><th>GPU Model</th><th>GPUs</th><th>Region</th><th>Energy Site</th><th>Registered</th><th>Action</th></tr>
             </thead>
             <tbody id="pending-nodes-tbody">
-              <tr><td colspan="8" class="text-center text-slate-500 py-8">Loading...</td></tr>
+              <tr><td colspan="9" class="text-center text-slate-500 py-8">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -194,19 +203,50 @@
           <h2 class="font-bold text-lg flex items-center gap-2">
             <i data-lucide="file-check-2" class="w-5 h-5 text-cyan-glow"></i> Pending Energy Proof Review Queue
           </h2>
-          <button id="btn-refresh-pending-proofs" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
-          </button>
+          <div class="flex items-center gap-3">
+            <button id="btn-approve-selected" class="hidden text-xs px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold">Approve Selected (<span id="approve-selected-count">0</span>)</button>
+            <button id="btn-refresh-pending-proofs" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
         </div>
         <div class="overflow-x-auto scrollbar-thin">
           <table class="pc-table">
             <thead>
-              <tr><th>Proof ID</th><th>Node ID</th><th>Operator</th><th>kWh Routed</th><th>Est. Reward</th><th>Period</th><th>Submitted</th><th>Actions</th></tr>
+              <tr><th><input type="checkbox" id="select-all-proofs" /></th><th>Proof ID</th><th>Node ID</th><th>Operator</th><th>kWh Routed</th><th>Est. Reward</th><th>Period</th><th>Submitted</th><th>Actions</th></tr>
             </thead>
             <tbody id="pending-proofs-tbody">
-              <tr><td colspan="8" class="text-center text-slate-500 py-8">Loading...</td></tr>
+              <tr><td colspan="9" class="text-center text-slate-500 py-8">Loading...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB: TRENDS ================= -->
+    <section id="tab-trends" class="admin-tab-panel hidden">
+      <div class="flex items-center justify-between mb-5">
+        <p class="text-xs text-slate-400">Built from a bounded scan of recent on-chain events (last ~50,000 blocks) — for high-volume production use, replace with a subgraph/indexer for complete history.</p>
+        <button id="btn-refresh-trends" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition whitespace-nowrap ml-4">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+        </button>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass glass-border-glow rounded-3xl p-6">
+          <h3 class="font-bold text-sm mb-4 flex items-center gap-2"><i data-lucide="layers" class="w-4 h-4 text-emerald-glow"></i> Staking Activity Over Time</h3>
+          <div class="relative h-64"><canvas id="trend-staking-chart"></canvas></div>
+        </div>
+        <div class="glass glass-border-glow rounded-3xl p-6">
+          <h3 class="font-bold text-sm mb-4 flex items-center gap-2"><i data-lucide="battery-charging" class="w-4 h-4 text-cyan-glow"></i> Energy Routed Per Approval Batch</h3>
+          <div class="relative h-64"><canvas id="trend-energy-chart"></canvas></div>
+        </div>
+        <div class="glass glass-border-glow rounded-3xl p-6">
+          <h3 class="font-bold text-sm mb-4 flex items-center gap-2"><i data-lucide="server" class="w-4 h-4 text-emerald-glow"></i> Node Registrations Over Time</h3>
+          <div class="relative h-64"><canvas id="trend-nodes-chart"></canvas></div>
+        </div>
+        <div class="glass glass-border-glow rounded-3xl p-6">
+          <h3 class="font-bold text-sm mb-4 flex items-center gap-2"><i data-lucide="trending-up" class="w-4 h-4 text-cyan-glow"></i> Presale Contributions Over Time</h3>
+          <div class="relative h-64"><canvas id="trend-presale-chart"></canvas></div>
         </div>
       </div>
     </section>
@@ -354,6 +394,202 @@
       </div>
     </section>
 
+    <!-- ================= TAB: GOVERNANCE ================= -->
+    <section id="tab-governance" class="admin-tab-panel hidden">
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="landmark" class="w-5 h-5 text-emerald-glow"></i> Create Proposal</h2>
+          <p class="text-xs text-slate-400 mb-5">PowerComputeGovernor.sol — advisory, stake-weighted voting. Requires staked $PWR &gt;= proposal threshold. Public voting page: <a href="governance.html" target="_blank" class="text-emerald-glow underline">governance.html</a></p>
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Title</label>
+              <input id="gov-proposal-title" type="text" placeholder="e.g. Reduce staking reward rate by 20%" class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Description</label>
+              <textarea id="gov-proposal-desc" rows="4" placeholder="Explain the rationale for this proposal..." class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10 resize-none"></textarea>
+            </div>
+            <button id="btn-gov-propose" class="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition flex items-center justify-center gap-2">
+              <i data-lucide="send" class="w-4 h-4"></i> Submit Proposal
+            </button>
+            <p id="gov-propose-status" class="text-xs mono text-slate-500 break-all"></p>
+          </div>
+
+          <div class="mt-6 pt-5 border-t border-white/5 space-y-4">
+            <p class="text-xs font-semibold text-slate-300">Governor parameters</p>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Proposal threshold (wei staked $PWR)</label>
+              <div class="flex gap-2">
+                <input id="gov-threshold" type="text" placeholder="e.g. 1000000000000000000000" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-gov-set-threshold" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Voting period (seconds)</label>
+              <div class="flex gap-2">
+                <input id="gov-voting-period" type="number" min="3600" placeholder="e.g. 259200 (3 days)" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-gov-set-period" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Quorum (bps of total staked, 500 = 5%)</label>
+              <div class="flex gap-2">
+                <input id="gov-quorum" type="number" min="0" max="10000" placeholder="e.g. 500" class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-gov-set-quorum" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+            <p id="gov-params-status" class="text-xs mono text-slate-500 break-all"></p>
+          </div>
+        </div>
+
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="vote" class="w-5 h-5 text-cyan-glow"></i> All Proposals</h2>
+            <button id="btn-refresh-gov-proposals" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
+          <div id="gov-proposals-list" class="space-y-3 max-h-[620px] overflow-y-auto scrollbar-thin">
+            <p class="text-center text-slate-500 py-8 text-sm">Loading proposals...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB: VESTING ================= -->
+    <section id="tab-vesting" class="admin-tab-panel hidden">
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="hourglass" class="w-5 h-5 text-emerald-glow"></i> Create Vesting Schedule</h2>
+          <p class="text-xs text-slate-400 mb-5">PowerComputeVesting.sol — makes team/advisor lockups real. Requires <span class="mono">approve()</span> on the token for this contract first (button provided below).</p>
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Beneficiary</label>
+              <input id="vest-beneficiary" type="text" placeholder="0x..." class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-slate-400 block mb-1.5">Total amount ($PWR)</label>
+                <input id="vest-amount" type="number" min="0" placeholder="e.g. 5000000" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+              </div>
+              <div>
+                <label class="text-xs text-slate-400 block mb-1.5">Start date</label>
+                <input id="vest-start" type="datetime-local" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-slate-400 block mb-1.5">Cliff (months)</label>
+                <input id="vest-cliff-months" type="number" min="0" value="6" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+              </div>
+              <div>
+                <label class="text-xs text-slate-400 block mb-1.5">Total duration (months)</label>
+                <input id="vest-duration-months" type="number" min="1" value="24" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+              </div>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-slate-400">
+              <input type="checkbox" id="vest-revocable" checked /> Revocable (owner can cancel unvested remainder)
+            </label>
+            <div class="flex gap-2">
+              <button id="btn-vest-approve" class="flex-1 rounded-lg bg-slate-500/15 border border-slate-500/30 text-slate-300 text-xs font-semibold py-2.5">1. Approve $PWR</button>
+              <button id="btn-vest-create" class="flex-1 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-charcoal text-xs font-semibold py-2.5">2. Create Schedule</button>
+            </div>
+            <p id="vest-create-status" class="text-xs mono text-slate-500 break-all"></p>
+          </div>
+        </div>
+
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="users" class="w-5 h-5 text-cyan-glow"></i> Beneficiaries</h2>
+            <button id="btn-refresh-vesting" class="text-xs flex items-center gap-1.5 text-slate-400 hover:text-emerald-glow transition">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
+          <div class="overflow-x-auto scrollbar-thin">
+            <table class="pc-table">
+              <thead>
+                <tr><th>Beneficiary</th><th>Total</th><th>Vested</th><th>Released</th><th>Status</th><th>Action</th></tr>
+              </thead>
+              <tbody id="vesting-tbody">
+                <tr><td colspan="6" class="text-center text-slate-500 py-8">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB: TIMELOCK ================= -->
+    <section id="tab-timelock" class="admin-tab-panel hidden">
+      <div class="glass glass-border-glow rounded-2xl p-5 mb-6 flex items-start gap-3">
+        <i data-lucide="shield-alert" class="w-5 h-5 text-emerald-glow shrink-0 mt-0.5"></i>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          <strong class="text-slate-300">Recommended setup:</strong> deploy a Gnosis Safe multisig (2-of-3 or 3-of-5) at
+          <a href="https://app.safe.global" target="_blank" class="text-emerald-glow underline">app.safe.global</a>, deploy
+          <span class="mono">PowerComputeTimelock</span> with that Safe as its <span class="mono">admin</span>, then transfer ownership of
+          PowerComputeToken / NodeRegistry / PowerComputePresale / PowerComputeAnnouncements to the Timelock address (via the Settings tab).
+          From then on, every sensitive owner-only call on those contracts must be queued here and wait out the delay before it can execute —
+          giving your community visibility and a chance to react before any privileged action takes effect.
+        </p>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="clock" class="w-5 h-5 text-emerald-glow"></i> Queue a Transaction</h2>
+          <p class="text-xs text-slate-400 mb-5">Target contract address, ETH value, ABI-encoded calldata, and an ETA at least <span class="mono" id="timelock-min-delay-label">delaySeconds</span> from now.</p>
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Target contract address</label>
+              <input id="tl-target" type="text" placeholder="0x..." class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-slate-400 block mb-1.5">ETH value (wei)</label>
+                <input id="tl-value" type="text" value="0" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+              </div>
+              <div>
+                <label class="text-xs text-slate-400 block mb-1.5">ETA</label>
+                <input id="tl-eta" type="datetime-local" class="w-full glass rounded-lg px-3 py-2.5 text-sm mono outline-none focus:border-emerald-glow border border-white/10" />
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Calldata (hex, e.g. from Remix's "Encode function call")</label>
+              <textarea id="tl-data" rows="3" placeholder="0x..." class="w-full glass rounded-lg px-3 py-2.5 text-xs mono outline-none focus:border-emerald-glow border border-white/10 resize-none"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btn-tl-queue" class="rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow text-xs font-semibold py-2.5">Queue</button>
+              <button id="btn-tl-execute" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold py-2.5">Execute</button>
+            </div>
+            <button id="btn-tl-cancel" class="w-full rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold py-2">Cancel Queued Tx</button>
+            <p id="tl-status" class="text-xs mono text-slate-500 break-all"></p>
+          </div>
+        </div>
+
+        <div class="glass glass-border-glow rounded-3xl p-6 lg:p-7">
+          <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="user-cog" class="w-5 h-5 text-cyan-glow"></i> Timelock Admin</h2>
+          <p class="text-xs text-slate-400 mb-5">Two-step admin transfer — set a pending admin (e.g. your Safe), which must then call <span class="mono">acceptAdmin()</span> itself.</p>
+          <div class="space-y-4">
+            <div class="glass rounded-xl p-4">
+              <p class="text-xs text-slate-400">Current admin</p>
+              <p class="mono text-sm font-semibold" id="tl-current-admin">--</p>
+            </div>
+            <div class="glass rounded-xl p-4">
+              <p class="text-xs text-slate-400">Current delay</p>
+              <p class="mono text-sm font-semibold" id="tl-current-delay">--</p>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1.5">Set pending admin (e.g. your Gnosis Safe)</label>
+              <div class="flex gap-2">
+                <input id="tl-pending-admin" type="text" placeholder="0x..." class="flex-1 glass rounded-lg px-3 py-2 text-xs mono outline-none border border-white/10 focus:border-cyan-glow" />
+                <button id="btn-tl-set-pending-admin" class="rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-glow text-xs font-semibold px-3 whitespace-nowrap">Set</button>
+              </div>
+            </div>
+            <p id="tl-admin-status" class="text-xs mono text-slate-500 break-all"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ================= TAB: CONTENT (ANNOUNCEMENTS / ARTICLES) ================= -->
     <section id="tab-content" class="admin-tab-panel hidden">
       <div class="grid lg:grid-cols-2 gap-6">
@@ -380,6 +616,18 @@
             <div>
               <label class="text-xs text-slate-400 block mb-1.5">Body</label>
               <textarea id="post-body" rows="6" placeholder="Write your announcement or article content here..." class="w-full glass rounded-lg px-3 py-2.5 text-sm outline-none focus:border-emerald-glow border border-white/10 resize-none"></textarea>
+              <div class="flex items-center justify-between mt-1.5">
+                <span id="post-body-counter" class="text-[11px] text-slate-500 mono">0 characters</span>
+                <span id="post-body-gas-warning" class="hidden text-[11px] text-amber-400">⚠ Long content costs more gas to publish — consider IPFS for full text</span>
+              </div>
+              <div id="post-ipfs-tip" class="hidden mt-2 glass rounded-lg p-3 border border-amber-500/20">
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  <strong class="text-amber-400">Tip:</strong> for long-form articles, keep the on-chain <span class="mono">body</span> as a short
+                  summary, upload the full article to <a href="https://www.pinata.cloud" target="_blank" class="text-emerald-glow underline">Pinata</a>
+                  or another free IPFS pinning service, and paste the resulting <span class="mono">ipfs://...</span> or gateway URL into the
+                  "External URL" field above. This keeps publish gas costs low while still supporting long content.
+                </p>
+              </div>
             </div>
             <button id="btn-publish-post" class="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-3 font-semibold text-charcoal shadow-glow-emerald hover:brightness-110 transition flex items-center justify-center gap-2">
               <i data-lucide="send" class="w-4 h-4"></i> Publish Article
@@ -427,7 +675,10 @@
                 <option value="registry">NodeRegistry</option>
                 <option value="presale">PowerComputePresale</option>
                 <option value="announcements">PowerComputeAnnouncements</option>
+                <option value="vesting">PowerComputeVesting</option>
+                <option value="governor">PowerComputeGovernor</option>
               </select>
+              <p class="text-[11px] text-slate-500 mt-1.5">Tip: transferring ownership to your deployed <span class="mono">PowerComputeTimelock</span> address (Timelock tab) is the recommended production setup — see the note there.</p>
             </div>
             <div>
               <label class="text-xs text-slate-400 block mb-1.5">Transfer ownership to</label>
@@ -606,6 +857,10 @@ async function verifyAccess() {
     loadPendingProofs();
     loadPosts();
     loadActivityLog();
+    loadTrends();
+    loadGovProposals();
+    loadVestingSchedules();
+    loadTimelockInfo();
   } catch (err) {
     console.error("Access verification failed:", err);
     accessGranted = false;
@@ -682,16 +937,16 @@ async function loadPendingNodes() {
   if (!accessGranted) return;
   const tbody = document.getElementById('pending-nodes-tbody');
   if (!PC.nodeRegistryContract) {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">NodeRegistry not configured.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">NodeRegistry not configured.</td></tr>`;
     return;
   }
-  tbody.innerHTML = `<tr><td colspan="8" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="9" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
 
   try {
     const nextId = await PC.nodeRegistryContract.nextNodeId();
     const total = Number(nextId.toString()) - 1;
     if (total <= 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">No nodes registered on this network yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">No nodes registered on this network yet.</td></tr>`;
       return;
     }
     const scanFrom = Math.max(1, total - 99);
@@ -702,12 +957,13 @@ async function loadPendingNodes() {
     const pending = nodes.filter(({ n }) => Number(n.status) === 0);
 
     if (pending.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">No pending nodes awaiting verification.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">No pending nodes awaiting verification.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = pending.map(({ id, n }) => `
       <tr>
+        <td><input type="checkbox" class="node-select-checkbox" data-node-id="${id}" /></td>
         <td class="mono">#${id}</td>
         <td class="mono text-xs">${pcShorten(n.operator)}</td>
         <td>${n.gpuModel}</td>
@@ -721,9 +977,63 @@ async function loadPendingNodes() {
     document.querySelectorAll('.verify-node-btn').forEach(btn => {
       btn.addEventListener('click', () => handleVerifyNode(btn.dataset.nodeId));
     });
+    document.querySelectorAll('.node-select-checkbox').forEach(cb => {
+      cb.addEventListener('change', updateNodeSelectionUI);
+    });
+    updateNodeSelectionUI();
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-400 py-8">Failed to load queue: ${err.message || err}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-red-400 py-8">Failed to load queue: ${err.message || err}</td></tr>`;
+  }
+}
+
+function updateNodeSelectionUI() {
+  const checked = document.querySelectorAll('.node-select-checkbox:checked');
+  const btn = document.getElementById('btn-verify-selected');
+  document.getElementById('verify-selected-count').textContent = checked.length.toString();
+  btn.classList.toggle('hidden', checked.length === 0);
+}
+
+function updateProofSelectionUI() {
+  const checked = document.querySelectorAll('.proof-select-checkbox:checked');
+  const btn = document.getElementById('btn-approve-selected');
+  document.getElementById('approve-selected-count').textContent = checked.length.toString();
+  btn.classList.toggle('hidden', checked.length === 0);
+}
+
+async function handleBatchVerifyNodes() {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+  const ids = Array.from(document.querySelectorAll('.node-select-checkbox:checked')).map(cb => cb.dataset.nodeId);
+  if (ids.length === 0) { pcToast("Select at least one node.", "error"); return; }
+
+  try {
+    const tx = await PC.nodeRegistryContract.batchVerifyNodes(ids);
+    pcToast(`Verifying ${ids.length} node(s)...`);
+    await tx.wait();
+    pcToast(`${ids.length} node(s) verified.`, "success");
+    loadPendingNodes();
+    loadOverview();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Batch verification failed.", "error");
+  }
+}
+
+async function handleBatchApproveProofs() {
+  if (!pcRequire(PC.nodeRegistryContract, "NodeRegistry")) return;
+  const ids = Array.from(document.querySelectorAll('.proof-select-checkbox:checked')).map(cb => cb.dataset.proofId);
+  if (ids.length === 0) { pcToast("Select at least one proof.", "error"); return; }
+
+  try {
+    const tx = await PC.nodeRegistryContract.batchApproveEnergyProofs(ids);
+    pcToast(`Approving ${ids.length} proof(s)...`);
+    await tx.wait();
+    pcToast(`${ids.length} proof(s) approved — rewards minted.`, "success");
+    loadPendingProofs();
+    loadOverview();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Batch approval failed.", "error");
   }
 }
 
@@ -734,16 +1044,16 @@ async function loadPendingProofs() {
   if (!accessGranted) return;
   const tbody = document.getElementById('pending-proofs-tbody');
   if (!PC.nodeRegistryContract) {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">NodeRegistry not configured.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">NodeRegistry not configured.</td></tr>`;
     return;
   }
-  tbody.innerHTML = `<tr><td colspan="8" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="9" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
 
   try {
     const nextId = await PC.nodeRegistryContract.nextProofId();
     const total = Number(nextId.toString()) - 1;
     if (total <= 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">No energy proofs submitted yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">No energy proofs submitted yet.</td></tr>`;
       return;
     }
     const scanFrom = Math.max(1, total - 99);
@@ -754,7 +1064,7 @@ async function loadPendingProofs() {
     const pending = proofs.filter(({ p }) => !p.approved && !p.rejected);
 
     if (pending.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-slate-500 py-8">No pending energy proofs awaiting review.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-slate-500 py-8">No pending energy proofs awaiting review.</td></tr>`;
       return;
     }
 
@@ -764,6 +1074,7 @@ async function loadPendingProofs() {
       const estReward = ethers.BigNumber.from(p.kWhRouted).mul(rewardPerKwh);
       return `
       <tr>
+        <td><input type="checkbox" class="proof-select-checkbox" data-proof-id="${id}" /></td>
         <td class="mono">#${id}</td>
         <td class="mono">#${p.nodeId.toString()}</td>
         <td class="mono text-xs">${pcShorten(p.operator)}</td>
@@ -780,10 +1091,25 @@ async function loadPendingProofs() {
 
     document.querySelectorAll('.approve-proof-btn').forEach(btn => btn.addEventListener('click', () => handleApproveProof(btn.dataset.proofId)));
     document.querySelectorAll('.reject-proof-btn').forEach(btn => btn.addEventListener('click', () => handleRejectProof(btn.dataset.proofId)));
+    document.querySelectorAll('.proof-select-checkbox').forEach(cb => cb.addEventListener('change', updateProofSelectionUI));
+    updateProofSelectionUI();
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-red-400 py-8">Failed to load queue: ${err.message || err}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-red-400 py-8">Failed to load queue: ${err.message || err}</td></tr>`;
   }
+}
+
+function wireBulkSelectionControls() {
+  document.getElementById('select-all-nodes').addEventListener('change', (e) => {
+    document.querySelectorAll('.node-select-checkbox').forEach(cb => { cb.checked = e.target.checked; });
+    updateNodeSelectionUI();
+  });
+  document.getElementById('select-all-proofs').addEventListener('change', (e) => {
+    document.querySelectorAll('.proof-select-checkbox').forEach(cb => { cb.checked = e.target.checked; });
+    updateProofSelectionUI();
+  });
+  document.getElementById('btn-verify-selected').addEventListener('click', handleBatchVerifyNodes);
+  document.getElementById('btn-approve-selected').addEventListener('click', handleBatchApproveProofs);
 }
 
 async function handleVerifyNode(nodeId) {
@@ -830,6 +1156,107 @@ async function handleRejectProof(proofId) {
     console.error(err);
     pcToast(err.reason || err.message || "Rejection failed.", "error");
   }
+}
+
+/* -------------------------------------------------------------------------
+   Trends tab — bucket recent events (last ~50,000 blocks) into daily
+   buckets for a lightweight growth chart, without needing a subgraph.
+   ------------------------------------------------------------------------- */
+let trendCharts = {};
+
+function bucketEventsByDay(events, valueFn) {
+  const buckets = {};
+  events.forEach(e => {
+    const day = new Date(Number(e.timestamp) * 1000).toISOString().slice(0, 10);
+    buckets[day] = (buckets[day] || 0) + valueFn(e);
+  });
+  const days = Object.keys(buckets).sort();
+  return { labels: days, values: days.map(d => buckets[d]) };
+}
+
+function renderTrendChart(canvasId, label, labels, values, color) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (trendCharts[canvasId]) trendCharts[canvasId].destroy();
+
+  trendCharts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels.length ? labels : ['No data'],
+      datasets: [{ label, data: values.length ? values : [0], backgroundColor: color, borderRadius: 4 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#64748B', maxRotation: 45, minRotation: 45, font: { size: 9 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748B' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+async function loadTrends() {
+  if (!accessGranted) return;
+  const readProvider = new ethers.providers.JsonRpcProvider(POWERCOMPUTE_CONFIG.CHAIN_PARAMS.rpcUrls[0]);
+
+  try {
+    const latestBlock = await readProvider.getBlockNumber();
+    const fromBlock = Math.max(0, latestBlock - 50000);
+
+    // Staking activity
+    if (PC.tokenContract) {
+      const [staked, unstaked] = await Promise.all([
+        PC.tokenContract.queryFilter(PC.tokenContract.filters.Staked(), fromBlock, latestBlock).catch(() => []),
+        PC.tokenContract.queryFilter(PC.tokenContract.filters.Unstaked(), fromBlock, latestBlock).catch(() => [])
+      ]);
+      const withTimestamps = await attachBlockTimestamps(readProvider, [...staked, ...unstaked]);
+      const { labels, values } = bucketEventsByDay(withTimestamps, () => 1);
+      renderTrendChart('trend-staking-chart', 'Stake/Unstake events', labels, values, 'rgba(16,185,129,0.6)');
+    }
+
+    // Energy routed per approval
+    if (PC.nodeRegistryContract) {
+      const approved = await PC.nodeRegistryContract.queryFilter(PC.nodeRegistryContract.filters.EnergyProofApproved(), fromBlock, latestBlock).catch(() => []);
+      const withTimestamps = await attachBlockTimestamps(readProvider, approved);
+      const { labels, values } = bucketEventsByDay(withTimestamps, () => 1);
+      renderTrendChart('trend-energy-chart', 'Approved proofs', labels, values, 'rgba(6,182,212,0.6)');
+
+      const registered = await PC.nodeRegistryContract.queryFilter(PC.nodeRegistryContract.filters.NodeRegistered(), fromBlock, latestBlock).catch(() => []);
+      const withTimestamps2 = await attachBlockTimestamps(readProvider, registered);
+      const nodesBucketed = bucketEventsByDay(withTimestamps2, () => 1);
+      renderTrendChart('trend-nodes-chart', 'Nodes registered', nodesBucketed.labels, nodesBucketed.values, 'rgba(16,185,129,0.6)');
+    }
+
+    // Presale contributions
+    if (PC.presaleContract) {
+      const contributed = await PC.presaleContract.queryFilter(PC.presaleContract.filters.Contributed(), fromBlock, latestBlock).catch(() => []);
+      const withTimestamps = await attachBlockTimestamps(readProvider, contributed);
+      const { labels, values } = bucketEventsByDay(withTimestamps, e => parseFloat(ethers.utils.formatEther(e.args.weiAmount)));
+      renderTrendChart('trend-presale-chart', 'ETH contributed', labels, values, 'rgba(6,182,212,0.6)');
+    }
+  } catch (err) {
+    console.error("Failed to load trends:", err);
+  }
+}
+
+/**
+ * Attaches a `.timestamp` field to each event by fetching its block. Caches
+ * block timestamps within a single call to avoid redundant RPC calls when
+ * many events share a block.
+ */
+async function attachBlockTimestamps(provider, events) {
+  const blockCache = {};
+  const result = [];
+  for (const e of events) {
+    if (!(e.blockNumber in blockCache)) {
+      const block = await provider.getBlock(e.blockNumber);
+      blockCache[e.blockNumber] = block.timestamp;
+    }
+    result.push({ ...e, timestamp: blockCache[e.blockNumber] });
+  }
+  return result;
 }
 
 /* -------------------------------------------------------------------------
@@ -1017,6 +1444,398 @@ function wirePresaleControls() {
 }
 
 /* -------------------------------------------------------------------------
+   Governance tab
+   ------------------------------------------------------------------------- */
+function govProposeStatus(msg) { document.getElementById('gov-propose-status').textContent = msg; }
+function govParamsStatus(msg) { document.getElementById('gov-params-status').textContent = msg; }
+
+async function handleCreateProposal() {
+  if (!pcRequire(PC.governorContract, "PowerComputeGovernor")) return;
+  const title = document.getElementById('gov-proposal-title').value.trim();
+  const description = document.getElementById('gov-proposal-desc').value.trim();
+  if (!title) { pcToast("Enter a proposal title.", "error"); return; }
+
+  try {
+    govProposeStatus("Submitting proposal...");
+    const tx = await PC.governorContract.propose(title, description);
+    govProposeStatus(`Tx submitted: ${tx.hash}`);
+    await tx.wait();
+    govProposeStatus(`Proposal created: ${tx.hash}`);
+    pcToast("Proposal created! It's now live on the public governance page.", "success");
+    document.getElementById('gov-proposal-title').value = "";
+    document.getElementById('gov-proposal-desc').value = "";
+    loadGovProposals();
+  } catch (err) {
+    console.error(err);
+    govProposeStatus(err.reason || err.message || "Failed to create proposal.");
+    pcToast("Failed to create proposal — you may need more staked $PWR to meet the proposal threshold.", "error");
+  }
+}
+
+async function loadGovProposals() {
+  if (!accessGranted) return;
+  const list = document.getElementById('gov-proposals-list');
+  if (!PC.governorContract) {
+    list.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">PowerComputeGovernor not configured yet.</p>`;
+    return;
+  }
+  list.innerHTML = `<div class="skeleton h-16 w-full mb-2"></div><div class="skeleton h-16 w-full"></div>`;
+
+  try {
+    const nextId = await PC.governorContract.nextProposalId();
+    const total = Number(nextId.toString()) - 1;
+    if (total <= 0) {
+      list.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">No proposals yet.</p>`;
+      return;
+    }
+
+    const ids = [];
+    for (let i = total; i >= 1; i--) ids.push(i);
+
+    const proposals = await Promise.all(ids.map(id =>
+      Promise.all([PC.governorContract.getProposal(id), PC.governorContract.state(id)]).then(([p, s]) => ({ p, s }))
+    ));
+
+    list.innerHTML = proposals.map(({ p, s }) => {
+      const stateLabel = GOVERNOR_STATE_LABELS[s] || "Unknown";
+      const pillClass = stateLabel === "Succeeded" || stateLabel === "Executed" ? "pill-emerald" : stateLabel === "Defeated" ? "pill-red" : stateLabel === "Active" ? "pill-cyan" : "pill-slate";
+      const totalVotes = p.forVotes.add(p.againstVotes).add(p.abstainVotes);
+      return `
+        <div class="glass rounded-xl p-4">
+          <div class="flex items-start justify-between gap-2 mb-1">
+            <p class="font-semibold text-sm">#${p.id.toString()} — ${p.title}</p>
+            <span class="pill ${pillClass} shrink-0">${stateLabel}</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-2 line-clamp-2">${p.description}</p>
+          <div class="flex items-center gap-3 text-[11px] mono text-slate-500">
+            <span class="text-emerald-glow">For: ${pcFmtToken(p.forVotes, 18, 0)}</span>
+            <span class="text-red-400">Against: ${pcFmtToken(p.againstVotes, 18, 0)}</span>
+            <span>Abstain: ${pcFmtToken(p.abstainVotes, 18, 0)}</span>
+          </div>
+          ${stateLabel === "Succeeded" ? `<button class="mark-executed-btn mt-2 text-[11px] px-2 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-glow font-semibold" data-proposal-id="${p.id.toString()}">Mark Executed</button>` : ""}
+        </div>`;
+    }).join("");
+
+    document.querySelectorAll('.mark-executed-btn').forEach(btn => btn.addEventListener('click', () => handleMarkExecuted(btn.dataset.proposalId)));
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = `<p class="text-center text-red-400 py-8 text-sm">Failed to load proposals: ${err.message || err}</p>`;
+  }
+}
+
+async function handleMarkExecuted(proposalId) {
+  if (!pcRequire(PC.governorContract, "PowerComputeGovernor")) return;
+  try {
+    const tx = await PC.governorContract.markExecuted(proposalId);
+    pcToast(`Marking proposal #${proposalId} as executed...`);
+    await tx.wait();
+    pcToast("Proposal marked executed.", "success");
+    loadGovProposals();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Failed.", "error");
+  }
+}
+
+function wireGovernanceControls() {
+  document.getElementById('btn-gov-propose').addEventListener('click', handleCreateProposal);
+  document.getElementById('btn-refresh-gov-proposals').addEventListener('click', loadGovProposals);
+
+  document.getElementById('btn-gov-set-threshold').addEventListener('click', async () => {
+    if (!pcRequire(PC.governorContract, "PowerComputeGovernor")) return;
+    const val = document.getElementById('gov-threshold').value.trim();
+    if (!val) { pcToast("Enter a threshold in wei.", "error"); return; }
+    try {
+      govParamsStatus("Setting proposal threshold...");
+      const tx = await PC.governorContract.setProposalThreshold(val);
+      await tx.wait();
+      govParamsStatus(`Updated: ${tx.hash}`);
+      pcToast("Proposal threshold updated.", "success");
+    } catch (err) {
+      console.error(err);
+      govParamsStatus(err.reason || err.message || "Failed.");
+      pcToast("Failed to update threshold.", "error");
+    }
+  });
+
+  document.getElementById('btn-gov-set-period').addEventListener('click', async () => {
+    if (!pcRequire(PC.governorContract, "PowerComputeGovernor")) return;
+    const val = document.getElementById('gov-voting-period').value;
+    if (!val) { pcToast("Enter a voting period in seconds.", "error"); return; }
+    try {
+      govParamsStatus("Setting voting period...");
+      const tx = await PC.governorContract.setVotingPeriod(val);
+      await tx.wait();
+      govParamsStatus(`Updated: ${tx.hash}`);
+      pcToast("Voting period updated.", "success");
+    } catch (err) {
+      console.error(err);
+      govParamsStatus(err.reason || err.message || "Failed.");
+      pcToast("Failed to update voting period.", "error");
+    }
+  });
+
+  document.getElementById('btn-gov-set-quorum').addEventListener('click', async () => {
+    if (!pcRequire(PC.governorContract, "PowerComputeGovernor")) return;
+    const val = document.getElementById('gov-quorum').value;
+    if (val === "") { pcToast("Enter a quorum in bps.", "error"); return; }
+    try {
+      govParamsStatus("Setting quorum...");
+      const tx = await PC.governorContract.setQuorumBps(val);
+      await tx.wait();
+      govParamsStatus(`Updated: ${tx.hash}`);
+      pcToast("Quorum updated.", "success");
+    } catch (err) {
+      console.error(err);
+      govParamsStatus(err.reason || err.message || "Failed.");
+      pcToast("Failed to update quorum.", "error");
+    }
+  });
+}
+
+/* -------------------------------------------------------------------------
+   Vesting tab
+   ------------------------------------------------------------------------- */
+function vestCreateStatus(msg) { document.getElementById('vest-create-status').textContent = msg; }
+
+function wireVestingControls() {
+  document.getElementById('btn-vest-approve').addEventListener('click', async () => {
+    if (!pcRequire(PC.tokenContract, "PowerComputeToken") || !pcRequire(PC.vestingContract, "PowerComputeVesting")) return;
+    const amount = document.getElementById('vest-amount').value;
+    if (!amount || parseFloat(amount) <= 0) { pcToast("Enter a valid amount first.", "error"); return; }
+    try {
+      vestCreateStatus("Approving $PWR for vesting contract...");
+      const tx = await PC.tokenContract.approve(POWERCOMPUTE_CONFIG.VESTING_ADDRESS, ethers.utils.parseUnits(amount, 18));
+      await tx.wait();
+      vestCreateStatus(`Approved: ${tx.hash}`);
+      pcToast("Approved. Now click 'Create Schedule'.", "success");
+    } catch (err) {
+      console.error(err);
+      vestCreateStatus(err.reason || err.message || "Approval failed.");
+      pcToast("Approval failed.", "error");
+    }
+  });
+
+  document.getElementById('btn-vest-create').addEventListener('click', async () => {
+    if (!pcRequire(PC.vestingContract, "PowerComputeVesting")) return;
+
+    const beneficiary = document.getElementById('vest-beneficiary').value.trim();
+    const amount = document.getElementById('vest-amount').value;
+    const startInput = document.getElementById('vest-start').value;
+    const cliffMonths = parseFloat(document.getElementById('vest-cliff-months').value) || 0;
+    const durationMonths = parseFloat(document.getElementById('vest-duration-months').value) || 0;
+    const revocable = document.getElementById('vest-revocable').checked;
+
+    if (!ethers.utils.isAddress(beneficiary)) { pcToast("Enter a valid beneficiary address.", "error"); return; }
+    if (!amount || parseFloat(amount) <= 0) { pcToast("Enter a valid total amount.", "error"); return; }
+    if (!startInput) { pcToast("Select a start date.", "error"); return; }
+    if (durationMonths <= 0) { pcToast("Duration must be greater than 0.", "error"); return; }
+
+    const startTime = Math.floor(new Date(startInput).getTime() / 1000);
+    const SECONDS_PER_MONTH = 30 * 24 * 60 * 60; // approximation, fine for schedule planning
+    const cliffSeconds = Math.floor(cliffMonths * SECONDS_PER_MONTH);
+    const durationSeconds = Math.floor(durationMonths * SECONDS_PER_MONTH);
+
+    try {
+      vestCreateStatus("Creating vesting schedule...");
+      const tx = await PC.vestingContract.createVestingSchedule(
+        beneficiary, ethers.utils.parseUnits(amount, 18), startTime, cliffSeconds, durationSeconds, revocable
+      );
+      vestCreateStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      vestCreateStatus(`Schedule created: ${tx.hash}`);
+      pcToast("Vesting schedule created.", "success");
+      loadVestingSchedules();
+    } catch (err) {
+      console.error(err);
+      vestCreateStatus(err.reason || err.message || "Failed to create schedule.");
+      pcToast("Failed to create vesting schedule — did you approve enough $PWR first?", "error");
+    }
+  });
+
+  document.getElementById('btn-refresh-vesting').addEventListener('click', loadVestingSchedules);
+}
+
+async function loadVestingSchedules() {
+  if (!accessGranted) return;
+  const tbody = document.getElementById('vesting-tbody');
+  if (!PC.vestingContract) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-slate-500 py-8">PowerComputeVesting not configured yet.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = `<tr><td colspan="6" class="py-6"><div class="skeleton h-4 w-full"></div></td></tr>`;
+
+  try {
+    const count = Number((await PC.vestingContract.beneficiaryCount()).toString());
+    if (count === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-slate-500 py-8">No vesting schedules created yet.</td></tr>`;
+      return;
+    }
+
+    const addresses = await Promise.all(Array.from({ length: count }, (_, i) => PC.vestingContract.beneficiaries(i)));
+    const rows = await Promise.all(addresses.map(async (addr) => {
+      const [schedule, vested] = await Promise.all([
+        PC.vestingContract.getSchedule(addr),
+        PC.vestingContract.vestedAmountOf(addr)
+      ]);
+      return { addr, schedule, vested };
+    }));
+
+    tbody.innerHTML = rows.map(({ addr, schedule, vested }) => {
+      let statusPill = '<span class="pill pill-cyan">Vesting</span>';
+      if (schedule.revoked) statusPill = '<span class="pill pill-red">Revoked</span>';
+      else if (schedule.released.gte(schedule.totalAmount) && schedule.totalAmount.gt(0)) statusPill = '<span class="pill pill-emerald">Fully Released</span>';
+
+      return `
+        <tr>
+          <td class="mono text-xs">${pcShorten(addr)}</td>
+          <td class="mono">${pcFmtToken(schedule.totalAmount, 18, 0)}</td>
+          <td class="mono text-emerald-glow">${pcFmtToken(vested, 18, 0)}</td>
+          <td class="mono">${pcFmtToken(schedule.released, 18, 0)}</td>
+          <td>${statusPill}</td>
+          <td>
+            ${(!schedule.revoked && schedule.revocable) ? `<button class="revoke-vesting-btn text-xs px-2.5 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-400 font-semibold" data-addr="${addr}">Revoke</button>` : '<span class="text-xs text-slate-600">--</span>'}
+          </td>
+        </tr>`;
+    }).join("");
+
+    document.querySelectorAll('.revoke-vesting-btn').forEach(btn => btn.addEventListener('click', () => handleRevokeVesting(btn.dataset.addr)));
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-red-400 py-8">Failed to load schedules: ${err.message || err}</td></tr>`;
+  }
+}
+
+async function handleRevokeVesting(beneficiary) {
+  if (!pcRequire(PC.vestingContract, "PowerComputeVesting")) return;
+  if (!confirm(`Revoke the vesting schedule for ${beneficiary}? Unvested tokens will be returned to you immediately; already-vested tokens remain claimable by the beneficiary.`)) return;
+
+  try {
+    const tx = await PC.vestingContract.revoke(beneficiary);
+    pcToast("Revoking vesting schedule...");
+    await tx.wait();
+    pcToast("Vesting schedule revoked.", "success");
+    loadVestingSchedules();
+  } catch (err) {
+    console.error(err);
+    pcToast(err.reason || err.message || "Revoke failed.", "error");
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Timelock tab
+   ------------------------------------------------------------------------- */
+function tlStatus(msg) { document.getElementById('tl-status').textContent = msg; }
+function tlAdminStatus(msg) { document.getElementById('tl-admin-status').textContent = msg; }
+
+async function loadTimelockInfo() {
+  if (!accessGranted || !PC.timelockContract) return;
+  try {
+    const [admin, delay] = await Promise.all([PC.timelockContract.admin(), PC.timelockContract.delaySeconds()]);
+    document.getElementById('tl-current-admin').textContent = pcShorten(admin);
+    const delayHours = (Number(delay.toString()) / 3600).toFixed(1);
+    document.getElementById('tl-current-delay').textContent = `${delay.toString()}s (~${delayHours}h)`;
+    document.getElementById('timelock-min-delay-label').textContent = `${delayHours}h`;
+  } catch (err) {
+    console.error("Failed to load timelock info:", err);
+  }
+}
+
+function wireTimelockControls() {
+  document.getElementById('btn-tl-queue').addEventListener('click', async () => {
+    if (!pcRequire(PC.timelockContract, "PowerComputeTimelock")) return;
+    const target = document.getElementById('tl-target').value.trim();
+    const value = document.getElementById('tl-value').value.trim() || "0";
+    const data = document.getElementById('tl-data').value.trim() || "0x";
+    const etaInput = document.getElementById('tl-eta').value;
+
+    if (!ethers.utils.isAddress(target)) { pcToast("Enter a valid target address.", "error"); return; }
+    if (!etaInput) { pcToast("Select an ETA.", "error"); return; }
+
+    const eta = Math.floor(new Date(etaInput).getTime() / 1000);
+
+    try {
+      tlStatus("Queuing transaction...");
+      const tx = await PC.timelockContract.queueTransaction(target, value, data, eta);
+      tlStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      tlStatus(`Queued: ${tx.hash}`);
+      pcToast("Transaction queued in timelock.", "success");
+    } catch (err) {
+      console.error(err);
+      tlStatus(err.reason || err.message || "Queue failed.");
+      pcToast("Failed to queue — check that ETA satisfies the current delay.", "error");
+    }
+  });
+
+  document.getElementById('btn-tl-execute').addEventListener('click', async () => {
+    if (!pcRequire(PC.timelockContract, "PowerComputeTimelock")) return;
+    const target = document.getElementById('tl-target').value.trim();
+    const value = document.getElementById('tl-value').value.trim() || "0";
+    const data = document.getElementById('tl-data').value.trim() || "0x";
+    const etaInput = document.getElementById('tl-eta').value;
+
+    if (!ethers.utils.isAddress(target) || !etaInput) { pcToast("Fill in target and ETA matching a queued transaction.", "error"); return; }
+    const eta = Math.floor(new Date(etaInput).getTime() / 1000);
+
+    try {
+      tlStatus("Executing queued transaction...");
+      const tx = await PC.timelockContract.executeTransaction(target, value, data, eta, { value });
+      tlStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      tlStatus(`Executed: ${tx.hash}`);
+      pcToast("Transaction executed.", "success");
+    } catch (err) {
+      console.error(err);
+      tlStatus(err.reason || err.message || "Execution failed.");
+      pcToast("Execution failed — check the ETA has passed and hasn't exceeded the grace period.", "error");
+    }
+  });
+
+  document.getElementById('btn-tl-cancel').addEventListener('click', async () => {
+    if (!pcRequire(PC.timelockContract, "PowerComputeTimelock")) return;
+    const target = document.getElementById('tl-target').value.trim();
+    const value = document.getElementById('tl-value').value.trim() || "0";
+    const data = document.getElementById('tl-data').value.trim() || "0x";
+    const etaInput = document.getElementById('tl-eta').value;
+
+    if (!ethers.utils.isAddress(target) || !etaInput) { pcToast("Fill in target and ETA matching a queued transaction.", "error"); return; }
+    const eta = Math.floor(new Date(etaInput).getTime() / 1000);
+
+    try {
+      tlStatus("Cancelling queued transaction...");
+      const tx = await PC.timelockContract.cancelTransaction(target, value, data, eta);
+      tlStatus(`Tx submitted: ${tx.hash}`);
+      await tx.wait();
+      tlStatus(`Cancelled: ${tx.hash}`);
+      pcToast("Queued transaction cancelled.", "success");
+    } catch (err) {
+      console.error(err);
+      tlStatus(err.reason || err.message || "Cancel failed.");
+      pcToast("Cancel failed.", "error");
+    }
+  });
+
+  document.getElementById('btn-tl-set-pending-admin').addEventListener('click', async () => {
+    if (!pcRequire(PC.timelockContract, "PowerComputeTimelock")) return;
+    const addr = document.getElementById('tl-pending-admin').value.trim();
+    if (!ethers.utils.isAddress(addr)) { pcToast("Enter a valid address.", "error"); return; }
+
+    try {
+      tlAdminStatus("Setting pending admin...");
+      const tx = await PC.timelockContract.setPendingAdmin(addr);
+      await tx.wait();
+      tlAdminStatus(`Set: ${tx.hash}`);
+      pcToast("Pending admin set — it must now call acceptAdmin() itself to complete the transfer.", "success");
+    } catch (err) {
+      console.error(err);
+      tlAdminStatus(err.reason || err.message || "Failed.");
+      pcToast("Failed to set pending admin.", "error");
+    }
+  });
+}
+
+/* -------------------------------------------------------------------------
    Content (Announcements) admin actions
    ------------------------------------------------------------------------- */
 function postStatus(msg) { document.getElementById('post-tx-status').textContent = msg; }
@@ -1111,6 +1930,21 @@ function wireContentControls() {
   document.getElementById('btn-publish-post').addEventListener('click', handlePublishPost);
   document.getElementById('btn-refresh-posts').addEventListener('click', loadPosts);
 
+  const bodyInput = document.getElementById('post-body');
+  const counter = document.getElementById('post-body-counter');
+  const gasWarning = document.getElementById('post-body-gas-warning');
+  const ipfsTip = document.getElementById('post-ipfs-tip');
+  const GAS_WARNING_THRESHOLD = 800; // characters — roughly where on-chain storage cost starts to matter
+
+  bodyInput.addEventListener('input', () => {
+    const len = bodyInput.value.length;
+    counter.textContent = `${len.toLocaleString()} characters`;
+    const overThreshold = len > GAS_WARNING_THRESHOLD;
+    gasWarning.classList.toggle('hidden', !overThreshold);
+    ipfsTip.classList.toggle('hidden', !overThreshold);
+    counter.classList.toggle('text-amber-400', overThreshold);
+  });
+
   document.getElementById('btn-content-set-editor-true').addEventListener('click', () => {
     if (!pcRequire(PC.announcementsContract, "PowerComputeAnnouncements")) return;
     const addr = document.getElementById('content-editor-addr').value.trim();
@@ -1134,6 +1968,8 @@ function getSettingsTargetContract() {
   if (key === "registry") return { contract: PC.nodeRegistryContract, label: "NodeRegistry" };
   if (key === "presale") return { contract: PC.presaleContract, label: "PowerComputePresale" };
   if (key === "announcements") return { contract: PC.announcementsContract, label: "PowerComputeAnnouncements" };
+  if (key === "vesting") return { contract: PC.vestingContract, label: "PowerComputeVesting" };
+  if (key === "governor") return { contract: PC.governorContract, label: "PowerComputeGovernor" };
   return { contract: null, label: "Unknown" };
 }
 
@@ -1297,12 +2133,14 @@ async function loadActivityLog() {
 
     if (POWERCOMPUTE_CONFIG.presaleConfigured) {
       const presale = new ethers.Contract(POWERCOMPUTE_CONFIG.PRESALE_ADDRESS, PRESALE_ABI, readProvider);
-      const [contributed, claimed2] = await Promise.all([
+      const [contributed, claimed2, referred] = await Promise.all([
         presale.queryFilter(presale.filters.Contributed(), fromBlock, latestBlock).catch(() => []),
-        presale.queryFilter(presale.filters.Claimed(), fromBlock, latestBlock).catch(() => [])
+        presale.queryFilter(presale.filters.Claimed(), fromBlock, latestBlock).catch(() => []),
+        presale.queryFilter(presale.filters.ReferralLinked(), fromBlock, latestBlock).catch(() => [])
       ]);
       events.push(...contributed.map(e => ({ name: "Contributed", details: `${pcShorten(e.args.contributor)} contributed ${pcFmtEth(e.args.weiAmount, 4)} ETH`, hash: e.transactionHash, block: e.blockNumber })));
       events.push(...claimed2.map(e => ({ name: "Claimed", details: `${pcShorten(e.args.contributor)} claimed ${pcFmtToken(e.args.tokenAmount, 18)} PWR`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...referred.map(e => ({ name: "ReferralLinked", details: `${pcShorten(e.args.referee)} referred by ${pcShorten(e.args.referrer)}`, hash: e.transactionHash, block: e.blockNumber })));
     }
 
     if (POWERCOMPUTE_CONFIG.announcementsConfigured) {
@@ -1311,6 +2149,16 @@ async function loadActivityLog() {
         announcements.queryFilter(announcements.filters.PostPublished(), fromBlock, latestBlock).catch(() => [])
       ]);
       events.push(...published.map(e => ({ name: "PostPublished", details: `"${e.args.title}" (${e.args.tag}) by ${pcShorten(e.args.author)}`, hash: e.transactionHash, block: e.blockNumber })));
+    }
+
+    if (POWERCOMPUTE_CONFIG.governorConfigured) {
+      const governor = new ethers.Contract(POWERCOMPUTE_CONFIG.GOVERNOR_ADDRESS, GOVERNOR_ABI, readProvider);
+      const [proposed, voted] = await Promise.all([
+        governor.queryFilter(governor.filters.ProposalCreated(), fromBlock, latestBlock).catch(() => []),
+        governor.queryFilter(governor.filters.VoteCast(), fromBlock, latestBlock).catch(() => [])
+      ]);
+      events.push(...proposed.map(e => ({ name: "ProposalCreated", details: `#${e.args.proposalId.toString()} "${e.args.title}" by ${pcShorten(e.args.proposer)}`, hash: e.transactionHash, block: e.blockNumber })));
+      events.push(...voted.map(e => ({ name: "VoteCast", details: `${pcShorten(e.args.voter)} voted on #${e.args.proposalId.toString()} (weight ${pcFmtToken(e.args.weight, 18, 0)})`, hash: e.transactionHash, block: e.blockNumber })));
     }
 
     events.sort((a, b) => b.block - a.block);
@@ -1345,11 +2193,16 @@ document.addEventListener('DOMContentLoaded', () => {
   wirePresaleControls();
   wireContentControls();
   wireSettingsControls();
+  wireBulkSelectionControls();
+  wireGovernanceControls();
+  wireVestingControls();
+  wireTimelockControls();
 
   document.getElementById('btn-refresh-overview').addEventListener('click', loadOverview);
   document.getElementById('btn-refresh-pending-nodes').addEventListener('click', loadPendingNodes);
   document.getElementById('btn-refresh-pending-proofs').addEventListener('click', loadPendingProofs);
   document.getElementById('btn-refresh-activity').addEventListener('click', loadActivityLog);
+  document.getElementById('btn-refresh-trends').addEventListener('click', loadTrends);
 
   pcOnConnect(verifyAccess);
 

@@ -31,6 +31,21 @@ import "./common/PowerComputeBase.sol";
  *
  * If the owner instead calls `cancelPresale()` before finalizing,
  * contributors can call `claimRefund()` to withdraw their ETH back.
+ *
+ * Referral program:
+ *  - Call `contribute()` for a plain contribution, or
+ *    `contributeWithReferral(referrer)` to attach a referrer on your very
+ *    first contribution. Once a referrer relationship is recorded for an
+ *    address, it applies automatically to ALL of that address's future
+ *    contributions (including via the plain `contribute()`), so a referee
+ *    only needs to use a referral link once.
+ *  - Each contribution while a referrer relationship is active mints bonus
+ *    $PWR (on top of the normal allocation) to both the referee
+ *    (`refereeBonusBps`) and the referrer (`referrerBonusBps`) — both
+ *    configurable by the owner, both default to a modest 3%/5%.
+ *  - Referral bonuses count toward `totalTokensSold`, so the owner must
+ *    deposit enough $PWR via `depositTokensForClaims` to cover them before
+ *    calling `finalize()`.
  */
 contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
     // ------------------------------------------------------------------
@@ -73,6 +88,31 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
     mapping(address => bool) private _isKnownContributor;
 
     // ------------------------------------------------------------------
+    // Referral program state
+    // ------------------------------------------------------------------
+
+    /// @notice The referrer permanently associated with a given address (set once, on first use of a referral link).
+    mapping(address => address) public referredBy;
+
+    /// @notice Number of distinct addresses a given referrer has referred.
+    mapping(address => uint256) public referralCount;
+
+    /// @notice Cumulative wei contributed by all of a referrer's referees.
+    mapping(address => uint256) public referralVolumeWei;
+
+    /// @notice Cumulative bonus $PWR a referrer has earned across all their referees.
+    mapping(address => uint256) public referralBonusEarned;
+
+    /// @notice Bonus (in bps of the referee's token allocation for that contribution) paid to the referee themself.
+    uint256 public refereeBonusBps = 300; // 3%
+
+    /// @notice Bonus (in bps of the referee's token allocation for that contribution) paid to the referrer.
+    uint256 public referrerBonusBps = 500; // 5%
+
+    /// @notice Total bonus $PWR issued across the entire referral program (accounting only, included in totalTokensSold).
+    uint256 public totalReferralBonusIssued;
+
+    // ------------------------------------------------------------------
     // Events
     // ------------------------------------------------------------------
 
@@ -86,6 +126,9 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
     event Claimed(address indexed contributor, uint256 tokenAmount);
     event Refunded(address indexed contributor, uint256 weiAmount);
     event FundsWithdrawn(address indexed to, uint256 weiAmount);
+    event ReferralLinked(address indexed referee, address indexed referrer);
+    event ReferralBonusPaid(address indexed referee, address indexed referrer, uint256 refereeBonus, uint256 referrerBonus);
+    event ReferralBpsUpdated(uint256 newRefereeBonusBps, uint256 newReferrerBonusBps);
 
     // ------------------------------------------------------------------
     // Constructor
@@ -125,6 +168,20 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
         fundingGoalWei = newGoalWei;
     }
 
+    /**
+     * @notice Adjust referral bonus rates. Capped at 20% each (2000 bps) to
+     *         bound how much extra $PWR the presale can commit to via
+     *         bonuses — the owner must still fund enough via
+     *         `depositTokensForClaims` to cover whatever is actually
+     *         issued, so this cap is a sanity guard, not a funding guard.
+     */
+    function setReferralBps(uint256 newRefereeBonusBps, uint256 newReferrerBonusBps) external onlyOwner {
+        require(newRefereeBonusBps <= 2000 && newReferrerBonusBps <= 2000, "Presale: referral bps too high");
+        refereeBonusBps = newRefereeBonusBps;
+        referrerBonusBps = newReferrerBonusBps;
+        emit ReferralBpsUpdated(newRefereeBonusBps, newReferrerBonusBps);
+    }
+
     // ------------------------------------------------------------------
     // Contribution
     // ------------------------------------------------------------------
@@ -134,8 +191,34 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
      *         splits a contribution across phase boundaries if it would
      *         overflow the current phase's remaining cap, advancing to
      *         subsequent phases as needed within the same transaction.
+     *         If the caller already has a referrer on file from a previous
+     *         `contributeWithReferral` call, referral bonuses still apply.
      */
     function contribute() external payable nonReentrant whenNotPaused {
+        _contribute();
+    }
+
+    /**
+     * @notice Contribute ETH while attaching a referrer. The referrer link
+     *         is recorded permanently on the FIRST successful call for a
+     *         given address (self-referral and re-referral are rejected);
+     *         subsequent contributions can just call `contribute()` and
+     *         will still receive referral bonuses via the stored link.
+     */
+    function contributeWithReferral(address referrer) external payable nonReentrant whenNotPaused {
+        require(referrer != msg.sender, "Presale: cannot refer yourself");
+        require(referrer != address(0), "Presale: zero address referrer");
+
+        if (referredBy[msg.sender] == address(0)) {
+            referredBy[msg.sender] = referrer;
+            referralCount[referrer] += 1;
+            emit ReferralLinked(msg.sender, referrer);
+        }
+
+        _contribute();
+    }
+
+    function _contribute() internal {
         require(state == PresaleState.Active, "Presale: not active");
         require(msg.value > 0, "Presale: must send ETH");
 
@@ -185,6 +268,41 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
         contributionsWei[msg.sender] += msg.value;
         tokenAllocations[msg.sender] += tokensAllocated;
         totalTokensSold += tokensAllocated;
+
+        _applyReferralBonus(msg.sender, tokensAllocated, msg.value);
+    }
+
+    /**
+     * @dev Applies referral bonuses for a contribution, if the contributor
+     *      has a referrer on file. Bonuses are computed as a percentage of
+     *      the tokens allocated for THIS contribution (not the referee's
+     *      cumulative total), so bonuses scale naturally with usage.
+     */
+    function _applyReferralBonus(address referee, uint256 tokensAllocatedThisTx, uint256 weiThisTx) internal {
+        address referrer = referredBy[referee];
+        if (referrer == address(0) || tokensAllocatedThisTx == 0) {
+            return;
+        }
+
+        uint256 refereeBonus = (tokensAllocatedThisTx * refereeBonusBps) / 10_000;
+        uint256 referrerBonus = (tokensAllocatedThisTx * referrerBonusBps) / 10_000;
+        uint256 totalBonus = refereeBonus + referrerBonus;
+
+        if (refereeBonus > 0) {
+            tokenAllocations[referee] += refereeBonus;
+        }
+        if (referrerBonus > 0) {
+            tokenAllocations[referrer] += referrerBonus;
+        }
+
+        if (totalBonus > 0) {
+            totalTokensSold += totalBonus;
+            totalReferralBonusIssued += totalBonus;
+            referralVolumeWei[referrer] += weiThisTx;
+            referralBonusEarned[referrer] += referrerBonus;
+
+            emit ReferralBonusPaid(referee, referrer, refereeBonus, referrerBonus);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -316,6 +434,10 @@ contract PowerComputePresale is Ownable, Pausable, ReentrancyGuard {
         uint256 raised = totalRaisedWei;
         if (raised >= fundingGoalWei) return 10_000;
         return (raised * 10_000) / fundingGoalWei;
+    }
+
+    function referrerOf(address referee) external view returns (address) {
+        return referredBy[referee];
     }
 
     receive() external payable {
