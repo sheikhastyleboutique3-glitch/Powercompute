@@ -348,4 +348,69 @@ contract NodeRegistry is Ownable, Pausable, ReentrancyGuard {
         emit MaxKwhPerProofUpdated(maxKwhPerProof, newMax);
         maxKwhPerProof = newMax;
     }
+
+    // ------------------------------------------------------------------
+    // Batch operations (bulk admin actions — avoid one-tx-per-item once
+    // there are more than a handful of pending nodes/proofs to review)
+    // ------------------------------------------------------------------
+
+    /**
+     * @notice Verify multiple pending nodes in a single transaction. Any
+     *         individual node that is not in `Pending` status is skipped
+     *         (rather than reverting the whole batch) so one stale entry
+     *         in a batch selected client-side doesn't block the rest.
+     * @return verifiedCount Number of nodes actually verified by this call.
+     */
+    function batchVerifyNodes(uint256[] calldata nodeIds) external onlyOracleOrOwner returns (uint256 verifiedCount) {
+        for (uint256 i = 0; i < nodeIds.length; i++) {
+            Node storage node = nodes[nodeIds[i]];
+            if (node.operator != address(0) && node.status == NodeStatus.Pending) {
+                node.status = NodeStatus.Active;
+                totalActiveNodes += 1;
+                verifiedCount += 1;
+
+                emit NodeVerified(nodeIds[i], msg.sender);
+                emit NodeStatusChanged(nodeIds[i], NodeStatus.Pending, NodeStatus.Active);
+            }
+        }
+    }
+
+    /**
+     * @notice Approve multiple energy proofs in a single transaction.
+     *         Proofs that are already resolved or whose node is not
+     *         Active are skipped rather than reverting the whole batch.
+     * @return approvedCount Number of proofs actually approved by this call.
+     */
+    function batchApproveEnergyProofs(uint256[] calldata proofIds) external onlyOracleOrOwner nonReentrant returns (uint256 approvedCount) {
+        for (uint256 i = 0; i < proofIds.length; i++) {
+            EnergyProof storage proof = energyProofs[proofIds[i]];
+
+            if (proof.operator == address(0) || proof.approved || proof.rejected) {
+                continue;
+            }
+
+            Node storage node = nodes[proof.nodeId];
+            if (node.status != NodeStatus.Active) {
+                continue;
+            }
+
+            uint256 reward = proof.kWhRouted * rewardPerKwh;
+
+            proof.approved = true;
+            proof.rewardMinted = reward;
+            proof.resolvedAt = block.timestamp;
+
+            node.totalEnergyRoutedKwh += proof.kWhRouted;
+            node.totalRewardsEarned += reward;
+            node.lastProofTimestamp = block.timestamp;
+
+            totalEnergyRoutedKwh += proof.kWhRouted;
+            totalRewardsMinted += reward;
+
+            pwrToken.mintReward(proof.operator, reward);
+
+            emit EnergyProofApproved(proofIds[i], proof.nodeId, proof.operator, reward);
+            approvedCount += 1;
+        }
+    }
 }
